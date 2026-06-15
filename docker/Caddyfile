@@ -1,3 +1,9 @@
+{
+	servers {
+		protocols h1 h2 h2c
+	}
+}
+
 inhumane.in, www.inhumane.in {
 	reverse_proxy web:3000
 }
