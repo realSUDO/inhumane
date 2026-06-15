@@ -40,5 +40,6 @@ FROM node:20-alpine AS api
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=builder /app/apps/api/dist ./dist
+COPY --from=builder /app/apps/api/node_modules ./node_modules
 EXPOSE 4000
 CMD ["node", "dist/index.js"]
