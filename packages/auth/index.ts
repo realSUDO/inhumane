@@ -1,4 +1,5 @@
 import { betterAuth } from "better-auth";
+import { getMigrations } from "better-auth/db/migration";
 import { Pool } from "pg";
 
 function createAuth() {
@@ -23,10 +24,17 @@ function createAuth() {
 type Auth = ReturnType<typeof createAuth>;
 
 let _auth: Auth;
+let _migrated = false;
 
 export const auth: Auth = new Proxy({} as Auth, {
   get(_, prop) {
-    if (!_auth) _auth = createAuth();
+    if (!_auth) {
+      _auth = createAuth();
+      if (!_migrated) {
+        _migrated = true;
+        getMigrations(_auth.options).then(({ runMigrations }) => runMigrations()).catch(() => {});
+      }
+    }
     return (_auth as any)[prop];
   },
 });
