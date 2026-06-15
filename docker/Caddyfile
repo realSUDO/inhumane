@@ -1,0 +1,11 @@
+inhumane.in, www.inhumane.in {
+	reverse_proxy web:3000
+}
+
+chat.inhumane.in {
+	reverse_proxy web:3000
+}
+
+api.inhumane.in {
+	reverse_proxy api:4000
+}
