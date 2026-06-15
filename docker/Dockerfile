@@ -11,6 +11,8 @@ COPY packages/trpc/package.json ./packages/trpc/package.json
 COPY packages/database/package.json ./packages/database/package.json
 COPY packages/services/package.json ./packages/services/package.json
 COPY packages/logger/package.json ./packages/logger/package.json
+COPY packages/auth/package.json ./packages/auth/package.json
+COPY packages/agent/package.json ./packages/agent/package.json
 COPY packages/eslint-config/package.json ./packages/eslint-config/package.json
 COPY packages/typescript-config/package.json ./packages/typescript-config/package.json
 RUN pnpm install --frozen-lockfile
