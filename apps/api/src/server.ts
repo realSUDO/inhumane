@@ -7,32 +7,38 @@ import { generateOpenApiDocument, createOpenApiExpressMiddleware } from "trpc-to
 import { apiReference } from "@scalar/express-api-reference";
 
 import { serverRouter, createContext } from "@repo/trpc/server";
+import { auth } from "@repo/auth";
+import { toNodeHandler } from "better-auth/node";
 
 import { env } from "./env";
 
 export const app = express();
 const openApiDocument = generateOpenApiDocument(serverRouter, {
-  title: "Streamyst OpenAPI",
+  title: "Inhumane OpenAPI",
   version: "1.0.0",
   baseUrl: env.BASE_URL.concat("/api"),
 });
 
-if (env.NODE_ENV !== "prod") {
-  app.use(
-    cors({
-      origin: "*",
-    }),
-  );
-}
+app.use(
+  cors({
+    origin: env.NODE_ENV === "prod" 
+      ? ["https://inhumane.in", "https://chat.inhumane.in", "https://www.inhumane.in"]
+      : "*",
+    credentials: true,
+  }),
+);
 
 app.use(express.json());
 
+// Better Auth handles /api/auth/*
+app.all("/api/auth/*splat", toNodeHandler(auth));
+
 app.get("/", (req, res) => {
-  return res.json({ message: "Streamyst is up and running..." });
+  return res.json({ message: "Inhumane is up and running..." });
 });
 
 app.get("/health", (req, res) => {
-  return res.json({ message: "Streamyst server is healthy", healthy: true });
+  return res.json({ message: "Inhumane server is healthy", healthy: true });
 });
 
 logger.debug(`openapi.json: ${env.BASE_URL}/openapi.json`);
