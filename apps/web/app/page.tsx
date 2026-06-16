@@ -1,11 +1,11 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
-const API_URL = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const AUTH_URL = process.env.INTERNAL_API_URL || "http://api:4000";
 
 export default async function Home() {
   const cookieStore = await cookies();
-  const res = await fetch(`${API_URL}/api/auth/get-session`, {
+  const res = await fetch(`${AUTH_URL}/api/auth/get-session`, {
     headers: { cookie: cookieStore.toString() },
   });
 

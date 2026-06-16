@@ -9,7 +9,12 @@ inhumane.in, www.inhumane.in {
 }
 
 chat.inhumane.in {
-	reverse_proxy web:3000
+	handle /api/auth/* {
+		reverse_proxy api:4000
+	}
+	handle {
+		reverse_proxy web:3000
+	}
 }
 
 api.inhumane.in {
