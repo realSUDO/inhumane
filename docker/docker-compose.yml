@@ -24,9 +24,11 @@ services:
     environment:
       - PORT=3000
       - HOSTNAME=0.0.0.0
-      - NEXT_PUBLIC_API_URL=http://api:4000
+      - INTERNAL_API_URL=http://api:4000
     expose:
       - "3000"
+    depends_on:
+      - api
 
   api:
     image: ghcr.io/${GITHUB_REPO}:api-latest
