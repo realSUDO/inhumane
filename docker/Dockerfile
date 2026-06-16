@@ -2,28 +2,14 @@ FROM node:20-alpine AS base
 RUN corepack enable && corepack prepare pnpm@9.0.0 --activate
 WORKDIR /app
 
-# Install dependencies
-FROM base AS deps
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
-COPY apps/web/package.json ./apps/web/package.json
-COPY apps/api/package.json ./apps/api/package.json
-COPY packages/trpc/package.json ./packages/trpc/package.json
-COPY packages/database/package.json ./packages/database/package.json
-COPY packages/services/package.json ./packages/services/package.json
-COPY packages/logger/package.json ./packages/logger/package.json
-COPY packages/auth/package.json ./packages/auth/package.json
-COPY packages/agent/package.json ./packages/agent/package.json
-COPY packages/eslint-config/package.json ./packages/eslint-config/package.json
-COPY packages/typescript-config/package.json ./packages/typescript-config/package.json
-RUN pnpm install --frozen-lockfile
-
-# Build all
+# Build everything in one stage - pnpm needs proper workspace context
 FROM base AS builder
-COPY --from=deps /app ./
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV SKIP_ENV_VALIDATION=1
+RUN pnpm install --frozen-lockfile
 RUN pnpm build
+RUN pnpm --filter @repo/api deploy --prod /app/deploy/api
 
 # --- Web runner ---
 FROM base AS web
@@ -39,6 +25,7 @@ CMD ["node", "apps/web/server.js"]
 FROM node:20-alpine AS api
 WORKDIR /app
 ENV NODE_ENV=production
+COPY --from=builder /app/deploy/api/node_modules ./node_modules
 COPY --from=builder /app/apps/api/dist ./dist
 EXPOSE 4000
 CMD ["node", "dist/index.js"]
