@@ -35,8 +35,23 @@ app.all("/api/auth/*splat", toNodeHandler(auth));
 // Corsair OAuth + status
 app.use("/api/corsair", corsairRouter);
 
-// Corsair MCP endpoint (internal, used by chat)
-app.use("/mcp", createMcpRouter(() => createBaseMcpServer({ corsair })));
+// Corsair MCP endpoint — uses tenantId from query string
+const tenantMcpMap = new Map<string, string>();
+
+app.use("/mcp/:tenantId", (req, res, next) => {
+  const { tenantId } = req.params;
+  (req as any).__tenantId = tenantId;
+  next();
+}, createMcpRouter(() => createBaseMcpServer({ corsair })));
+
+// Override: patch createMcpRouter to use tenant-scoped corsair
+app.use("/mcp-tenant", (req, res, next) => {
+  const tenantId = req.query.tenantId as string;
+  if (!tenantId) { res.status(400).json({ error: "tenantId required" }); return; }
+  const scoped = corsair.withTenant(tenantId);
+  const router = createMcpRouter(() => createBaseMcpServer({ corsair: scoped }));
+  router(req, res, next);
+});
 
 // Chat streaming
 app.use("/api/chat", chatRouter);
