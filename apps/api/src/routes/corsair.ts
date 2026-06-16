@@ -37,10 +37,17 @@ corsairRouter.get("/callback", async (req, res) => {
   try {
     await processOAuthCallback(corsair, { code, state, redirectUri: REDIRECT_URI });
     res.clearCookie("corsair_oauth_state");
-    res.redirect("/?connected=true");
+    // Close popup and notify parent window
+    res.send(`<html><body><script>
+      window.opener?.postMessage({ type: "corsair-connected" }, "*");
+      window.close();
+    </script><p>Connected! You can close this window.</p></body></html>`);
   } catch (err) {
     res.clearCookie("corsair_oauth_state");
-    res.status(500).send("OAuth failed");
+    res.send(`<html><body><script>
+      window.opener?.postMessage({ type: "corsair-error" }, "*");
+      window.close();
+    </script><p>Connection failed. Close this window and try again.</p></body></html>`);
   }
 });
 
@@ -49,11 +56,14 @@ corsairRouter.get("/status", async (req, res) => {
   const session = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) });
   if (!session) { res.status(401).json({ error: "Unauthorized" }); return; }
 
-  const tenant = corsair.withTenant(session.user.id);
-  // Check if credentials exist by trying to get keys
-  const status: Record<string, boolean> = {};
-  try { status.gmail = !!(await tenant.gmail.api.labels.list({})); } catch { status.gmail = false; }
-  try { status.googlecalendar = !!(await tenant.googlecalendar.api.events.list({})); } catch { status.googlecalendar = false; }
+  const { Pool } = await import("pg");
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  const { rows } = await pool.query(
+    `SELECT i.name FROM corsair_accounts a JOIN corsair_integrations i ON a.integration_id = i.id WHERE a.tenant_id = $1`,
+    [session.user.id]
+  );
+  await pool.end();
 
-  res.json(status);
+  const connected = rows.map((r: any) => r.name);
+  res.json({ gmail: connected.includes("gmail"), googlecalendar: connected.includes("googlecalendar") });
 });

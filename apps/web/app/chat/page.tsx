@@ -5,11 +5,39 @@ import { DefaultChatTransport } from "ai";
 import { useState, useEffect, useRef } from "react";
 
 type Thread = { id: string; title: string; created_at: string };
+type ConnectStatus = { gmail: boolean; googlecalendar: boolean };
+
+function ConnectBanner({ status, onConnect }: { status: ConnectStatus; onConnect: (plugin: string) => void }) {
+  const missing = [];
+  if (!status.gmail) missing.push("gmail");
+  if (!status.googlecalendar) missing.push("googlecalendar");
+  if (!missing.length) return null;
+
+  return (
+    <div className="mx-6 mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg flex items-center justify-between">
+      <span className="text-sm text-yellow-800">
+        Connect {missing.map((m) => m === "gmail" ? "Gmail" : "Calendar").join(" & ")} to use AI operator
+      </span>
+      <div className="flex gap-2">
+        {missing.map((plugin) => (
+          <button
+            key={plugin}
+            onClick={() => onConnect(plugin)}
+            className="px-3 py-1 bg-yellow-600 text-white text-xs rounded hover:bg-yellow-700"
+          >
+            Connect {plugin === "gmail" ? "Gmail" : "Calendar"}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function ChatPage() {
   const [threads, setThreads] = useState<Thread[]>([]);
   const [activeThread, setActiveThread] = useState<string | null>(null);
   const [input, setInput] = useState("");
+  const [connectStatus, setConnectStatus] = useState<ConnectStatus>({ gmail: false, googlecalendar: false });
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const { messages, sendMessage, status, setMessages } = useChat({
@@ -26,7 +54,30 @@ export default function ChatPage() {
       .then((r) => r.json())
       .then(setThreads)
       .catch(() => {});
+    // Load connect status
+    fetch("/api/corsair/status", { credentials: "include" })
+      .then((r) => r.json())
+      .then(setConnectStatus)
+      .catch(() => {});
   }, []);
+
+  // Listen for popup connect completion
+  useEffect(() => {
+    const handler = (e: MessageEvent) => {
+      if (e.data?.type === "corsair-connected") {
+        fetch("/api/corsair/status", { credentials: "include" })
+          .then((r) => r.json())
+          .then(setConnectStatus)
+          .catch(() => {});
+      }
+    };
+    window.addEventListener("message", handler);
+    return () => window.removeEventListener("message", handler);
+  }, []);
+
+  const openConnectPopup = (plugin: string) => {
+    window.open(`/api/corsair/connect?plugin=${plugin}`, "corsair-connect", "width=500,height=600,popup=yes");
+  };
 
   // Load messages when switching threads
   useEffect(() => {
@@ -116,6 +167,7 @@ export default function ChatPage() {
 
       {/* Chat Area */}
       <div className="flex-1 flex flex-col">
+        <ConnectBanner status={connectStatus} onConnect={openConnectPopup} />
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
           {messages.length === 0 && (
             <div className="flex items-center justify-center h-full text-gray-400">
