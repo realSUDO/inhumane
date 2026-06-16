@@ -19,14 +19,13 @@ RUN pnpm install --frozen-lockfile
 
 # Build all
 FROM base AS builder
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
-COPY --from=deps /app/apps/api/node_modules ./apps/api/node_modules
-COPY --from=deps /app/packages ./packages
+COPY --from=deps /app ./
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV SKIP_ENV_VALIDATION=1
 RUN pnpm build
+# Use pnpm deploy to create isolated production bundles (resolves symlinks)
+RUN pnpm --filter @repo/api deploy --prod /app/deployed/api
 
 # --- Web runner ---
 FROM base AS web
@@ -42,9 +41,7 @@ CMD ["node", "apps/web/server.js"]
 FROM node:20-alpine AS api
 WORKDIR /app
 ENV NODE_ENV=production
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/apps/api/node_modules ./apps/api/node_modules
-COPY --from=builder /app/apps/api/package.json ./package.json
+COPY --from=builder /app/deployed/api/node_modules ./node_modules
 COPY --from=builder /app/apps/api/dist ./dist
 EXPOSE 4000
 CMD ["node", "dist/index.js"]
