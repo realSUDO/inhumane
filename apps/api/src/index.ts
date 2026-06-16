@@ -4,7 +4,6 @@ import { logger } from "@repo/logger";
 import { app as expressApplication } from "./server";
 import { auth } from "@repo/auth";
 import { getMigrations } from "better-auth/db/migration";
-import { setupCorsair } from "corsair";
 import { corsair } from "./corsair";
 import { env } from "./env";
 
@@ -32,19 +31,13 @@ async function bootstrap() {
   const { runMigrations } = await getMigrations(auth.options);
   await runMigrations();
 
-  // 3. Corsair plugin credentials (idempotent)
-  await setupCorsair(corsair, {
-    credentials: {
-      gmail: {
-        client_id: process.env.GOOGLE_CLIENT_ID!,
-        client_secret: process.env.GOOGLE_CLIENT_SECRET!,
-      },
-      googlecalendar: {
-        client_id: process.env.GOOGLE_CLIENT_ID!,
-        client_secret: process.env.GOOGLE_CLIENT_SECRET!,
-      },
-    },
-  });
+  // 3. Corsair integration credentials (integration-level only, no accounts)
+  try {
+    await corsair.keys.gmail.set_client_id(process.env.GOOGLE_CLIENT_ID!);
+    await corsair.keys.gmail.set_client_secret(process.env.GOOGLE_CLIENT_SECRET!);
+    await corsair.keys.googlecalendar.set_client_id(process.env.GOOGLE_CLIENT_ID!);
+    await corsair.keys.googlecalendar.set_client_secret(process.env.GOOGLE_CLIENT_SECRET!);
+  } catch { /* already set */ }
 
   logger.info("bootstrap complete");
 }
