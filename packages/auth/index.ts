@@ -4,7 +4,9 @@ import { Pool } from "pg";
 export const auth = betterAuth({
   secret: process.env.BETTER_AUTH_SECRET,
   baseURL: process.env.BETTER_AUTH_URL,
-  database: process.env.DATABASE_URL || "",
+  database: new Pool({
+    connectionString: process.env.DATABASE_URL,
+  }),
   socialProviders: {
     google: {
       clientId: process.env.GOOGLE_CLIENT_ID!,
