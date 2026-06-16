@@ -6,6 +6,7 @@ import { useState, useEffect, useRef } from "react";
 
 type Thread = { id: string; title: string; created_at: string };
 type ConnectStatus = { gmail: boolean; googlecalendar: boolean };
+type User = { id: string; name: string; email: string; image?: string };
 
 function ConnectBanner({ status, onConnect }: { status: ConnectStatus; onConnect: (plugin: string) => void }) {
   const needsGmail = !status.gmail;
@@ -61,6 +62,7 @@ export default function ChatPage() {
   const [activeThread, setActiveThread] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [connectStatus, setConnectStatus] = useState<ConnectStatus>({ gmail: false, googlecalendar: false });
+  const [user, setUser] = useState<User | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const { messages, sendMessage, status, setMessages } = useChat({
@@ -71,16 +73,19 @@ export default function ChatPage() {
     }),
   });
 
-  // Load threads
+  // Load threads + status + user session
   useEffect(() => {
     fetch("/api/threads", { credentials: "include" })
       .then((r) => r.json())
       .then(setThreads)
       .catch(() => {});
-    // Load connect status
     fetch("/api/corsair/status", { credentials: "include" })
       .then((r) => r.json())
       .then(setConnectStatus)
+      .catch(() => {});
+    fetch("/api/auth/get-session", { credentials: "include" })
+      .then((r) => r.json())
+      .then((s) => s?.user && setUser(s.user))
       .catch(() => {});
   }, []);
 
@@ -187,6 +192,27 @@ export default function ChatPage() {
             </button>
           ))}
         </div>
+        {/* Profile */}
+        {user && (
+          <div className="border-t border-gray-700 p-3">
+            <div className="flex items-center gap-2">
+              {user.image && <img src={user.image} alt="" className="w-7 h-7 rounded-full" />}
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium truncate">{user.name}</p>
+                <p className="text-xs text-gray-400 truncate">{user.email}</p>
+              </div>
+              <button
+                onClick={() => {
+                  fetch("/api/auth/sign-out", { method: "POST", credentials: "include" })
+                    .then(() => window.location.href = "/");
+                }}
+                className="text-xs text-gray-400 hover:text-white"
+              >
+                ↪
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Chat Area */}
