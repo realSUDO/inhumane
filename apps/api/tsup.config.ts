@@ -2,8 +2,7 @@ import { defineConfig } from "tsup";
 
 export default defineConfig({
   entry: ["./src/index.ts"],
-  noExternal: [/.*/],
-  external: ["pg-native"],
+  noExternal: [/@repo\/.*/],
   splitting: false,
   bundle: true,
   outDir: "./dist",
