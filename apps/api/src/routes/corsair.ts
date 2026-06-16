@@ -51,19 +51,26 @@ corsairRouter.get("/callback", async (req, res) => {
   }
 });
 
-// GET /api/corsair/status - check which integrations user has connected
+// GET /api/corsair/status - verify integrations actually work
 corsairRouter.get("/status", async (req, res) => {
   const session = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) });
   if (!session) { res.status(401).json({ error: "Unauthorized" }); return; }
 
-  const { Pool } = await import("pg");
-  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-  const { rows } = await pool.query(
-    `SELECT i.name FROM corsair_accounts a JOIN corsair_integrations i ON a.integration_id = i.id WHERE a.tenant_id = $1`,
-    [session.user.id]
-  );
-  await pool.end();
+  const tenant = corsair.withTenant(session.user.id);
+  const status: Record<string, boolean> = { gmail: false, googlecalendar: false };
 
-  const connected = rows.map((r: any) => r.name);
-  res.json({ gmail: connected.includes("gmail"), googlecalendar: connected.includes("googlecalendar") });
+  try {
+    await tenant.gmail.api.labels.list({});
+    status.gmail = true;
+  } catch { status.gmail = false; }
+
+  try {
+    await tenant.googlecalendar.api.calendar.getAvailability({
+      timeMin: new Date().toISOString(),
+      timeMax: new Date(Date.now() + 86400000).toISOString(),
+    });
+    status.googlecalendar = true;
+  } catch { status.googlecalendar = false; }
+
+  res.json(status);
 });

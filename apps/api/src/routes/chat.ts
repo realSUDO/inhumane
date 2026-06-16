@@ -47,7 +47,7 @@ chatRouter.post("/", async (req, res) => {
   try {
     const port = process.env.PORT || 8000;
     const client = await createVercelAiMcpClient({
-      url: `http://localhost:${port}/mcp-tenant?tenantId=${session.user.id}`,
+      url: `http://localhost:${port}/mcp/${session.user.id}`,
     });
     const tools = await client.tools();
 
