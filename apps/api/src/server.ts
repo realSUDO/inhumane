@@ -12,6 +12,7 @@ import { auth } from "@repo/auth";
 import { toNodeHandler } from "better-auth/node";
 import { chatRouter } from "./routes/chat";
 import { corsairRouter } from "./routes/corsair";
+import { threadsRouter } from "./routes/threads";
 import { createBaseMcpServer, createMcpRouter } from "@corsair-dev/mcp";
 import { corsair } from "./corsair";
 
@@ -55,6 +56,9 @@ app.use("/mcp-tenant", (req, res, next) => {
 
 // Chat streaming
 app.use("/api/chat", chatRouter);
+
+// Threads/messages persistence
+app.use("/api/threads", threadsRouter);
 
 // Health
 app.get("/", (_req, res) => res.json({ message: "Inhumane is up and running..." }));
