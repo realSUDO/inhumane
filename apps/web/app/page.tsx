@@ -1,13 +1,21 @@
-import { auth } from "@repo/auth";
-import { headers } from "next/headers";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
 export default async function Home() {
-  const session = await auth.api.getSession({
-    headers: await headers(),
+  const cookieStore = await cookies();
+  const res = await fetch(`${API_URL}/api/auth/get-session`, {
+    headers: { cookie: cookieStore.toString() },
   });
 
-  if (!session) {
+  if (!res.ok) {
+    redirect("/login");
+  }
+
+  const session = await res.json();
+
+  if (!session?.user) {
     redirect("/login");
   }
 

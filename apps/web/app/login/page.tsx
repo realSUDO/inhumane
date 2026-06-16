@@ -1,6 +1,8 @@
 "use client";
 
-import { authClient } from "@repo/auth/client";
+import { createAuthClient } from "better-auth/react";
+
+const authClient = createAuthClient();
 
 export default function LoginPage() {
   const handleGoogleSignIn = () => {
