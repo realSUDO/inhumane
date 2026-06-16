@@ -21,7 +21,7 @@ const openApiDocument = generateOpenApiDocument(serverRouter, {
 
 app.use(
   cors({
-    origin: env.NODE_ENV === "prod" 
+    origin: env.NODE_ENV === "prod" || env.NODE_ENV === "production"
       ? ["https://inhumane.in", "https://chat.inhumane.in", "https://www.inhumane.in"]
       : "*",
     credentials: true,
