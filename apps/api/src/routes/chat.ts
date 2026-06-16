@@ -1,10 +1,7 @@
 import { Router } from "express";
 import { createOpenAI } from "@ai-sdk/openai";
-import { streamText, stepCountIs } from "ai";
-import { createBaseMcpServer, createMcpRouter } from "@corsair-dev/mcp";
-import { experimental_createMCPClient as createMCPClient } from "ai";
-import { Experimental_StdioMCPTransport as StdioTransport } from "ai/mcp-stdio";
-import { corsair } from "../corsair";
+import { streamText, convertToModelMessages, UIMessage, stepCountIs } from "ai";
+import { createVercelAiMcpClient } from "@corsair-dev/mcp";
 import { auth } from "@repo/auth";
 import { fromNodeHeaders } from "better-auth/node";
 
@@ -15,36 +12,56 @@ const llm = createOpenAI({
   baseURL: process.env.LLM_BASE_URL || "https://api.openai.com/v1",
 });
 
-const SYSTEM_PROMPT = `You are Inhumane, an AI operator that helps users manage email and calendar at inhuman speed.
+const SYSTEM_PROMPT = `You are Inhumane, an AI operator for email and calendar.
+Use corsair tools to execute Gmail and Google Calendar operations.
+Be concise. Execute directly. Ask only when truly ambiguous.`;
 
-You have access to Gmail and Google Calendar via Corsair tools. When the user asks:
-- Search/read emails → use gmail operations
-- Send/draft emails → use gmail operations  
-- Check schedule/availability → use googlecalendar operations
-- Create/update/delete events → use googlecalendar operations
+// Lazy-initialized MCP client (connects once, reused across requests)
+let mcpClientPromise: ReturnType<typeof createVercelAiMcpClient> | null = null;
 
-Be concise and action-oriented. Execute tasks directly. Ask for clarification only when truly ambiguous.`;
+function getMcpClient() {
+  if (!mcpClientPromise) {
+    const port = process.env.PORT || 8000;
+    mcpClientPromise = createVercelAiMcpClient({ url: `http://localhost:${port}/mcp` });
+  }
+  return mcpClientPromise;
+}
 
 chatRouter.post("/", async (req, res) => {
   const session = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) });
   if (!session) { res.status(401).json({ error: "Unauthorized" }); return; }
 
-  const { messages } = req.body;
+  const { messages }: { messages: UIMessage[] } = req.body;
   if (!messages?.length) { res.status(400).json({ error: "messages required" }); return; }
 
-  const tenantCorsair = corsair.withTenant(session.user.id);
+  try {
+    const client = await getMcpClient();
+    const tools = await client.tools();
 
-  // Create in-process MCP server scoped to this tenant
-  const mcpServer = createBaseMcpServer({ corsair: tenantCorsair });
-  const tools = mcpServer.tools;
+    const result = streamText({
+      model: llm(process.env.LLM_MODEL || "gpt-4.1"),
+      system: SYSTEM_PROMPT,
+      messages: await convertToModelMessages(messages),
+      tools,
+      stopWhen: stepCountIs(10),
+    });
 
-  const result = streamText({
-    model: llm(process.env.LLM_MODEL || "gpt-4.1"),
-    system: SYSTEM_PROMPT,
-    messages,
-    tools,
-    stopWhen: stepCountIs(10),
-  });
+    const response = result.toUIMessageStreamResponse();
+    res.status(response.status);
+    response.headers.forEach((value, key) => res.setHeader(key, value));
 
-  result.pipeDataStreamToResponse(res);
+    if (response.body) {
+      const reader = response.body.getReader();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        res.write(value);
+      }
+    }
+    res.end();
+  } catch (err) {
+    if (!res.headersSent) {
+      res.status(500).json({ error: "Chat failed" });
+    }
+  }
 });
