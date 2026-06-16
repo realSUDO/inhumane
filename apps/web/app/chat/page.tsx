@@ -79,24 +79,37 @@ export default function ChatPage() {
       .then((r) => r.json())
       .then(setThreads)
       .catch(() => {});
-    fetch("/api/corsair/status", { credentials: "include" })
-      .then((r) => r.json())
-      .then(setConnectStatus)
-      .catch(() => {});
+
+    // Connect status - check cache first
+    const cached = localStorage.getItem("corsair-status");
+    if (cached) {
+      const { data, ts } = JSON.parse(cached);
+      if (Date.now() - ts < 5 * 60 * 1000) { setConnectStatus(data); }
+      else { fetchConnectStatus(); }
+    } else { fetchConnectStatus(); }
+
     fetch("/api/auth/get-session", { credentials: "include" })
       .then((r) => r.json())
       .then((s) => s?.user && setUser(s.user))
       .catch(() => {});
   }, []);
 
+  function fetchConnectStatus() {
+    fetch("/api/corsair/status", { credentials: "include" })
+      .then((r) => r.json())
+      .then((data) => {
+        setConnectStatus(data);
+        localStorage.setItem("corsair-status", JSON.stringify({ data, ts: Date.now() }));
+      })
+      .catch(() => {});
+  }
+
   // Listen for popup connect completion
   useEffect(() => {
     const handler = (e: MessageEvent) => {
       if (e.data?.type === "corsair-connected") {
-        fetch("/api/corsair/status", { credentials: "include" })
-          .then((r) => r.json())
-          .then(setConnectStatus)
-          .catch(() => {});
+        localStorage.removeItem("corsair-status");
+        fetchConnectStatus();
       }
     };
     window.addEventListener("message", handler);
@@ -146,11 +159,12 @@ export default function ChatPage() {
 
     // Auto-create thread if none active
     if (!activeThread) {
+      const title = input.slice(0, 50) + (input.length > 50 ? "..." : "");
       fetch("/api/threads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ title: input.slice(0, 50) }),
+        body: JSON.stringify({ title }),
       })
         .then((r) => r.json())
         .then((thread) => {
