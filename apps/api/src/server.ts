@@ -13,6 +13,7 @@ import { toNodeHandler } from "better-auth/node";
 import { chatRouter } from "./routes/chat";
 import { corsairRouter } from "./routes/corsair";
 import { threadsRouter } from "./routes/threads";
+import { emailRouter } from "./routes/email";
 import { createBaseMcpServer, createMcpRouter } from "@corsair-dev/mcp";
 import { corsair } from "./corsair";
 
@@ -50,6 +51,9 @@ app.use("/mcp/:tenantId", (req, res, next) => {
 
 // Chat streaming
 app.use("/api/chat", chatRouter);
+
+// Email send (user-confirmed)
+app.use("/api/send-email", emailRouter);
 
 // Threads/messages persistence
 app.use("/api/threads", threadsRouter);

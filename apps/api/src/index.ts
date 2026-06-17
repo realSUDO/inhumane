@@ -18,11 +18,16 @@ async function bootstrap() {
     CREATE TABLE IF NOT EXISTS corsair_events (id TEXT PRIMARY KEY, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), account_id TEXT NOT NULL REFERENCES corsair_accounts(id), event_type TEXT NOT NULL, payload JSONB NOT NULL DEFAULT '{}', status TEXT);
   `);
 
-  // 1b. App tables (threads, messages)
+  // 1b. App tables (threads, messages, onboarding)
   await pool.query(`
     DO $$ BEGIN CREATE TYPE message_role AS ENUM ('user', 'assistant', 'tool', 'system'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-    CREATE TABLE IF NOT EXISTS threads (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id TEXT NOT NULL, title VARCHAR(255), created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW());
-    CREATE TABLE IF NOT EXISTS messages (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), thread_id UUID NOT NULL REFERENCES threads(id), role message_role NOT NULL, content TEXT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW());
+    CREATE TABLE IF NOT EXISTS threads (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id TEXT NOT NULL, title VARCHAR(255), pinned BOOLEAN DEFAULT false, archived BOOLEAN DEFAULT false, created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW());
+    CREATE TABLE IF NOT EXISTS messages (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), thread_id UUID NOT NULL REFERENCES threads(id) ON DELETE CASCADE, role message_role NOT NULL, content TEXT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW());
+    CREATE INDEX IF NOT EXISTS idx_threads_user_id ON threads(user_id);
+    CREATE INDEX IF NOT EXISTS idx_messages_thread_id ON messages(thread_id);
+    CREATE INDEX IF NOT EXISTS idx_corsair_accounts_tenant ON corsair_accounts(tenant_id);
+    ALTER TABLE threads ADD COLUMN IF NOT EXISTS pinned BOOLEAN DEFAULT false;
+    ALTER TABLE threads ADD COLUMN IF NOT EXISTS archived BOOLEAN DEFAULT false;
   `);
 
   await pool.end();
