@@ -14,7 +14,7 @@ function ThreadMenu({ thread, onAction, isRenaming, setRenaming }: { thread: Thr
 
   return (
     <div className="relative">
-      <button onClick={e => { e.stopPropagation(); setOpen(!open); }} className="p-1 rounded hover:bg-[#f4f4f8] text-[#6b7280] hover:text-[#1a1a2e] transition-colors">
+      <button data-menu-trigger onClick={e => { e.stopPropagation(); setOpen(!open); }} className="p-1 rounded hover:bg-[#f4f4f8] text-[#999] hover:text-[#444] transition-colors">
         <MoreHorizontalIcon size={14} />
       </button>
       {open && (
@@ -149,9 +149,10 @@ function ThreadItem({ thread, active, onSelect, onAction }: { thread: Thread; ac
   );
 
   return (
-    <div className={`group flex items-center rounded-lg transition-all duration-150 ${active ? "bg-[#f4f4f8]" : "hover:bg-[#f8f9fa]"}`}>
-      <button onClick={onSelect} className={`flex-1 flex items-center gap-2 px-3 py-2 text-left text-xs truncate ${active ? "text-[#1a1a2e]" : "text-[#6b7280] hover:text-[#374151]"}`}>
-        {thread.pinned && <PinIcon size={10} className="shrink-0 text-[#9ca3af]" />}
+    <div className={`group flex items-center rounded-lg transition-all duration-150 ${active ? "bg-[#f4f4f8]" : "hover:bg-[#f8f9fa]"}`}
+      onContextMenu={(e) => { e.preventDefault(); setRenaming(false); const menu = e.currentTarget.querySelector("[data-menu-trigger]") as HTMLElement; menu?.click(); }}>
+      <button onClick={onSelect} className={`flex-1 flex items-center gap-2 px-3 py-2.5 text-left text-[13px] truncate font-normal ${active ? "text-[#111] font-medium" : "text-[#555] hover:text-[#222]"}`}>
+        {thread.pinned && <PinIcon size={10} className="shrink-0 opacity-40" />}
         <span className="truncate">{thread.title}</span>
       </button>
       <div className="hidden group-hover:block pr-1">
@@ -328,128 +329,121 @@ export default function ChatPage() {
     setInput("");
   };
 
+  const tints = isDark
+    ? [{ c: "#7B93FF", bg: "#080b14" }, { c: "#5DDCCC", bg: "#081210" }, { c: "#FF7BAA", bg: "#120810" }]
+    : [{ c: "#4A6FA5", bg: "#f2f6fc" }, { c: "#2D6A4F", bg: "#f0f8f4" }, { c: "#8B5CF6", bg: "#f5f2ff" }];
+
+  const tc = (light: string, dark: string) => isDark ? dark : light;
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: "var(--bg, #fdf8f8)", fontFamily: "'Inter', sans-serif" }}>
+    <div className="flex h-screen overflow-hidden" style={{ background: "var(--bg)", fontFamily: "'Inter', -apple-system, sans-serif", color: tc("#1c1b1b", "#e0e0e0") }}>
       <ConnectModal status={connectStatus} onConnect={openConnectPopup} />
 
-      {/* Sidebar */}
-      <aside className="hidden md:flex flex-col h-full w-72 fixed left-0 top-0 p-7 gap-8 z-50" style={{ background: isDark ? "rgba(13,17,23,0.95)" : "rgba(247,243,242,0.8)", backdropFilter: "blur(12px)" }}>
-        <div>
-          <h1 className="text-[28px] font-medium tracking-[-0.02em]" style={{ color: isDark ? "#e5e5e5" : "#1c1b1b" }}>Inhumane</h1>
-          <p className="text-[11px] uppercase tracking-[0.05em] font-semibold mt-1" style={{ color: isDark ? "#666" : "#747878" }}>AI Workspace</p>
+      <aside className="hidden md:flex flex-col h-full w-[270px] fixed left-0 top-0 p-5 gap-5 z-50" style={{ background: tc("rgba(255,255,255,0.7)", "rgba(12,14,20,0.9)"), backdropFilter: "blur(20px)", borderRight: `1px solid ${tc("rgba(0,0,0,0.05)", "rgba(255,255,255,0.05)")}` }}>
+        <div className="px-1">
+          <h1 className="text-[22px] font-semibold tracking-[-0.02em]" style={{ color: tc("#111", "#f0f0f0") }}>Inhumane</h1>
+          <p className="text-[10px] uppercase tracking-[0.08em] font-medium mt-0.5" style={{ color: tc("#999", "#555") }}>Workspace</p>
         </div>
 
-        <button onClick={() => { setActiveThread(null); setShowChat(true); setMessages([]); }} className="flex items-center gap-3 w-full px-5 py-4 rounded-2xl text-[15px] font-medium hover:opacity-90 active:scale-[0.98] transition-all" style={{ color: isDark ? "#e5e5e5" : "#fff", background: isDark ? "rgba(255,255,255,0.08)" : "#1c1b1b" }}>
-          <PlusSignIcon size={18} /> New Thread
+        <button onClick={() => { setActiveThread(null); setShowChat(true); setMessages([]); }} className="flex items-center gap-2.5 w-full px-4 py-3 rounded-xl text-[13px] font-medium hover:opacity-90 active:scale-[0.97] transition-all" style={{ background: "var(--accent, #111)", color: "#fff" }}>
+          <PlusSignIcon size={16} /> New Thread
         </button>
 
-        <nav className="flex-1 overflow-y-auto -mx-2 px-2 space-y-5" style={{ scrollbarWidth: "thin", scrollbarColor: "#e5e2e1 transparent" }}>
+        <div className="flex-1 overflow-y-auto -mx-1 px-1 space-y-4" style={{ scrollbarWidth: "none" }}>
           {groupThreadsByDate(threads).map(group => (
             <div key={group.label}>
-              <p className="text-[10px] uppercase tracking-[0.08em] font-semibold px-3 mb-2" style={{ color: "#747878" }}>{group.label}</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.06em] px-2 mb-1.5" style={{ color: tc("#aaa", "#555") }}>{group.label}</p>
               {group.threads.map(t => (
                 <ThreadItem key={t.id} thread={t} active={activeThread === t.id} onSelect={() => setActiveThread(t.id)} onAction={handleThreadAction} />
               ))}
             </div>
           ))}
-        </nav>
-
-        {/* Accent Tint */}
-        <div className="flex items-center gap-3 px-2 pb-5">
-          {isDark ? (
-            <>
-              {[{ c: "#6B8AFF", bg: "#0d1117" }, { c: "#4ECDC4", bg: "#0a1614" }, { c: "#FF6B9D", bg: "#160d11" }].map(t => (
-                <button key={t.c} onClick={() => { document.documentElement.style.setProperty("--accent", t.c); document.documentElement.style.setProperty("--bg", t.bg); }} className="w-6 h-6 rounded-full ring-[1.5px] ring-white/10 hover:ring-white/40 hover:scale-[1.25] active:scale-90 transition-all cursor-pointer shadow-[0_0_12px_rgba(255,255,255,0.08)]" style={{ background: t.c }} />
-              ))}
-              <button onClick={() => { setIsDark(false); document.documentElement.classList.remove("dark"); document.documentElement.style.setProperty("--accent", "#1c1b1b"); document.documentElement.style.setProperty("--bg", "#fdf8f8"); }} className="w-6 h-6 rounded-full ring-[1.5px] ring-white/20 hover:ring-white/50 hover:scale-[1.25] active:scale-90 transition-all cursor-pointer" style={{ background: "#fff" }} />
-            </>
-          ) : (
-            <>
-              {[{ c: "#4A6FA5", bg: "#f8faff" }, { c: "#2D6A4F", bg: "#f7fbf8" }, { c: "#9B5DE5", bg: "#faf8ff" }].map(t => (
-                <button key={t.c} onClick={() => { document.documentElement.style.setProperty("--accent", t.c); document.documentElement.style.setProperty("--bg", t.bg); }} className="w-6 h-6 rounded-full ring-[1.5px] ring-black/[0.06] hover:ring-black/20 hover:scale-[1.25] active:scale-90 transition-all cursor-pointer shadow-[0_2px_6px_rgba(0,0,0,0.1)]" style={{ background: t.c }} />
-              ))}
-              <button onClick={() => { setIsDark(true); document.documentElement.classList.add("dark"); document.documentElement.style.setProperty("--accent", "#6B8AFF"); document.documentElement.style.setProperty("--bg", "#0d1117"); }} className="w-6 h-6 rounded-full ring-[1.5px] ring-black/[0.08] hover:ring-black/25 hover:scale-[1.25] active:scale-90 transition-all cursor-pointer shadow-[0_2px_6px_rgba(0,0,0,0.15)]" style={{ background: "#111" }} />
-            </>
-          )}
         </div>
+
+        {/* Tint Dots */}
+        <div className="flex items-center gap-2.5 px-1">
+          {tints.map(t => (
+            <button key={t.c} onClick={() => { document.documentElement.style.setProperty("--accent", t.c); document.documentElement.style.setProperty("--bg", t.bg); }} className="w-[22px] h-[22px] rounded-full hover:scale-[1.2] active:scale-90 transition-all cursor-pointer" style={{ background: t.c, boxShadow: `0 2px 8px ${t.c}40` }} />
+          ))}
+          <button onClick={() => { const next = !isDark; setIsDark(next); document.documentElement.classList.toggle("dark", next); document.documentElement.style.setProperty("--bg", next ? "#080b14" : "#f2f6fc"); document.documentElement.style.setProperty("--accent", next ? "#7B93FF" : "#4A6FA5"); }} className="w-[22px] h-[22px] rounded-full hover:scale-[1.2] active:scale-90 transition-all cursor-pointer" style={{ background: tc("#111", "#fff"), boxShadow: tc("0 2px 8px rgba(0,0,0,0.2)", "0 2px 8px rgba(255,255,255,0.3)") }} />
+        </div>
+
         {user && (
-          <div className="mt-auto flex items-center gap-3 pt-5" style={{ borderTop: isDark ? "1px solid rgba(255,255,255,0.06)" : "1px solid rgba(0,0,0,0.04)" }}>
-            {user.image && <img src={user.image} alt="" className="w-9 h-9 rounded-full object-cover" />}
+          <div className="flex items-center gap-2.5 px-1 pt-3" style={{ borderTop: `1px solid ${tc("rgba(0,0,0,0.05)", "rgba(255,255,255,0.05)")}` }}>
+            {user.image && <img src={user.image} alt="" className="w-8 h-8 rounded-full" />}
             <div className="flex-1 min-w-0">
-              <p className="text-[13px] font-medium truncate" style={{ color: isDark ? "#e5e5e5" : "#1c1b1b" }}>{user.name}</p>
-              <p className="text-[11px] truncate" style={{ color: isDark ? "#666" : "#747878" }}>{user.email}</p>
+              <p className="text-[12px] font-medium truncate" style={{ color: tc("#222", "#ddd") }}>{user.name}</p>
+              <p className="text-[10px] truncate" style={{ color: tc("#999", "#555") }}>{user.email}</p>
             </div>
-            <button onClick={() => { fetch("/api/auth/sign-out", { method: "POST", credentials: "include" }).then(() => { localStorage.removeItem("inhumane-onboarded"); window.location.href = "/"; }); }} className="opacity-40 hover:opacity-80 transition-opacity">
-              <Logout03Icon size={16} />
+            <button onClick={() => { fetch("/api/auth/sign-out", { method: "POST", credentials: "include" }).then(() => { localStorage.removeItem("inhumane-onboarded"); window.location.href = "/"; }); }} className="opacity-30 hover:opacity-70 transition-opacity">
+              <Logout03Icon size={15} />
             </button>
           </div>
         )}
       </aside>
 
-      {/* Main */}
-      <main className="md:ml-72 flex-1 h-screen flex flex-col relative overflow-hidden">
+      <main className="md:ml-[270px] flex-1 h-screen flex flex-col relative overflow-hidden">
         {!showChat ? (
-          <div className="flex-1 flex flex-col items-center justify-center px-10 pb-20">
-            <div className="w-full max-w-[640px]" style={{ animation: "fadeIn 0.6s ease-out" }}>
-              <h2 className="text-[36px] font-medium tracking-[-0.02em] leading-[1.2] mb-3" style={{ color: isDark ? "#e5e5e5" : "#1c1b1b" }}>What can I help with?</h2>
-              <p className="text-[16px] leading-[1.7] mb-10 max-w-md" style={{ color: isDark ? "#888" : "#5e5e5c" }}>Email, calendar, and everyday tasks — powered by AI.</p>
+          <div className="flex-1 flex flex-col items-center justify-center px-8 pb-16">
+            <div className="w-full max-w-[580px]" style={{ animation: "fadeIn 0.5s ease-out" }}>
+              {/* Hero */}
+              <div className="mb-10">
+                <p className="text-[12px] font-medium uppercase tracking-[0.08em] mb-3" style={{ color: "var(--accent, #4A6FA5)" }}>Your AI operator</p>
+                <h2 className="text-[38px] font-semibold tracking-[-0.03em] leading-[1.15]" style={{ color: tc("#0a0a0a", "#f5f5f5") }}>
+                  How can I help you<br />get things done?
+                </h2>
+              </div>
 
-              <form onSubmit={handleSubmit} className="mb-6">
-                <div className="rounded-2xl p-4 transition-all" style={{ background: isDark ? "rgba(255,255,255,0.04)" : "#fff", boxShadow: "0 4px 24px rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.04)" }}>
+              {/* Input Card */}
+              <form onSubmit={handleSubmit} className="mb-5">
+                <div className="rounded-2xl p-[18px] transition-all" style={{ background: tc("rgba(255,255,255,0.8)", "rgba(255,255,255,0.03)"), border: `1px solid ${tc("rgba(0,0,0,0.06)", "rgba(255,255,255,0.06)")}`, boxShadow: tc("0 4px 20px rgba(0,0,0,0.04)", "0 4px 20px rgba(0,0,0,0.3)") }}>
                   <textarea
                     value={input}
                     onChange={e => setInput(e.target.value)}
                     onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(e as any); } }}
                     rows={3}
-                    className="w-full text-[15px] placeholder:text-[#aaa] outline-none resize-none bg-transparent leading-[1.7]"
-                    style={{ color: isDark ? "#e5e5e5" : "#1c1b1b" }}
-                    placeholder="Type your instruction..."
+                    className="w-full text-[14px] placeholder:opacity-40 outline-none resize-none bg-transparent leading-[1.7]"
+                    style={{ color: tc("#1c1b1b", "#e5e5e5") }}
+                    placeholder="Send an email, check calendar, draft a reply..."
                   />
-                  <div className="flex items-center justify-between mt-3 pt-3" style={{ borderTop: "1px solid rgba(0,0,0,0.03)" }}>
-                    <kbd className="px-2 py-1 rounded-lg text-[10px] font-mono" style={{ background: "#f5f3f1", color: "#888", border: "1px solid rgba(0,0,0,0.04)" }}>⌘ Enter</kbd>
-                    <button type="submit" disabled={!input.trim()} className="w-10 h-10 rounded-full text-white flex items-center justify-center disabled:opacity-20 hover:scale-105 active:scale-95 transition-transform" style={{ background: "var(--accent, #1c1b1b)", boxShadow: "0 2px 8px rgba(0,0,0,0.12)" }}>↑</button>
+                  <div className="flex items-center justify-between mt-3 pt-3" style={{ borderTop: `1px solid ${tc("rgba(0,0,0,0.04)", "rgba(255,255,255,0.04)")}` }}>
+                    <span className="text-[10px] font-mono" style={{ color: tc("#bbb", "#555") }}>⏎ to send</span>
+                    <button type="submit" disabled={!input.trim()} className="w-9 h-9 rounded-full text-white flex items-center justify-center disabled:opacity-15 hover:scale-105 active:scale-95 transition-all text-[13px] font-medium" style={{ background: "var(--accent, #111)", boxShadow: `0 3px 10px ${tc("rgba(0,0,0,0.15)", "rgba(123,147,255,0.3)")}` }}>↑</button>
                   </div>
                 </div>
               </form>
 
+              {/* Chips */}
               <div className="flex flex-wrap gap-2">
-                <button onClick={() => startNewChat("Show my latest 5 emails")} className="px-5 py-2.5 rounded-full text-[13px] transition-colors hover:opacity-80" style={{ background: "#f3f7ff", color: "#1c1b1b", border: "1px solid #d0dfff" }}>
-                  <Mail01Icon size={14} className="inline mr-1.5 -mt-0.5 opacity-60" />Read Inbox
-                </button>
-                <button onClick={() => startNewChat("What's on my calendar today?")} className="px-5 py-2.5 rounded-full text-[13px] transition-colors hover:opacity-80" style={{ background: "#f3f7ff", color: "#1c1b1b", border: "1px solid #d0dfff" }}>
-                  <Calendar03Icon size={14} className="inline mr-1.5 -mt-0.5 opacity-60" />Schedule
-                </button>
-                <button onClick={() => startNewChat("Draft an email")} className="px-5 py-2.5 rounded-full text-[13px] transition-colors hover:opacity-80" style={{ background: "#f3f7ff", color: "#1c1b1b", border: "1px solid #d0dfff" }}>
-                  <PencilEdit01Icon size={14} className="inline mr-1.5 -mt-0.5 opacity-60" />Compose
-                </button>
+                {[{ label: "Read Inbox", icon: Mail01Icon, q: "Show my latest 5 emails" }, { label: "Schedule", icon: Calendar03Icon, q: "What's on my calendar today?" }, { label: "Compose", icon: PencilEdit01Icon, q: "Draft an email" }].map(chip => (
+                  <button key={chip.label} onClick={() => startNewChat(chip.q)} className="flex items-center gap-1.5 px-4 py-2 rounded-full text-[12px] font-medium transition-all hover:scale-[1.02] active:scale-[0.97]" style={{ background: tc("rgba(0,0,0,0.03)", "rgba(255,255,255,0.04)"), border: `1px solid ${tc("rgba(0,0,0,0.06)", "rgba(255,255,255,0.06)")}`, color: tc("#444", "#bbb") }}>
+                    <chip.icon size={13} className="opacity-50" />{chip.label}
+                  </button>
+                ))}
               </div>
             </div>
           </div>
         ) : (
           <>
-            <section className="flex-1 overflow-y-auto px-10 pt-8 pb-44" style={{ scrollbarWidth: "thin", scrollbarColor: "#e5e2e1 transparent" }}>
-              <div className="max-w-[720px] mx-auto flex flex-col gap-10">
+            <section className="flex-1 overflow-y-auto px-8 pt-8 pb-40" style={{ scrollbarWidth: "none" }}>
+              <div className="max-w-[680px] mx-auto flex flex-col gap-7">
                 {messages.map(message => (
-                  <div key={message.id} style={{ animation: "fadeIn 0.4s ease-out" }}>
+                  <div key={message.id} style={{ animation: "fadeIn 0.3s ease-out" }}>
                     {message.role === "user" ? (
                       <div className="flex justify-end">
-                        <div className="max-w-[80%] rounded-2xl px-5 py-4" style={{ background: isDark ? "rgba(255,255,255,0.05)" : "#fff", boxShadow: "0 2px 12px rgba(0,0,0,0.03)", border: isDark ? "1px solid rgba(255,255,255,0.06)" : "1px solid rgba(0,0,0,0.04)" }}>
-                          {message.parts.map((part, i) => part.type === "text" ? <p key={i} className="text-[15px] leading-[1.7] whitespace-pre-wrap" style={{ color: isDark ? "#bbb" : "#5e5e5c" }}>{part.text}</p> : null)}
+                        <div className="max-w-[75%] rounded-2xl rounded-br-lg px-4 py-3" style={{ background: "var(--accent, #111)", color: "#fff" }}>
+                          {message.parts.map((part, i) => part.type === "text" ? <p key={i} className="text-[14px] leading-[1.6] whitespace-pre-wrap">{part.text}</p> : null)}
                         </div>
                       </div>
                     ) : (
-                      <div className="relative">
-                        <div className="rounded-2xl px-6 py-5 max-w-[92%]" style={{ background: isDark ? "rgba(255,255,255,0.04)" : "#fff", boxShadow: "0 4px 24px rgba(0,0,0,0.03)", border: isDark ? "1px solid rgba(255,255,255,0.06)" : "1px solid rgba(0,0,0,0.04)" }}>
-                          <div className="flex items-center gap-2 mb-3">
-                            <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "#f5f3f1" }}>
-                              <span className="text-[9px] font-bold" style={{ color: "#747878" }}>AI</span>
-                            </div>
-                            <span className="text-[10px] font-semibold uppercase tracking-[0.05em]" style={{ color: "#747878" }}>Inhumane</span>
-                          </div>
+                      <div className="flex gap-3">
+                        <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-1" style={{ background: tc("rgba(0,0,0,0.04)", "rgba(255,255,255,0.06)") }}>
+                          <span className="text-[9px] font-bold" style={{ color: tc("#888", "#888") }}>AI</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
                           {message.parts.map((part, i) => {
-                            if (part.type === "text") return <div key={i} className="text-[15px] leading-[1.8] whitespace-pre-wrap" style={{ color: isDark ? "#e5e5e5" : "#1c1b1b" }}>{renderMessageContent(part.text)}</div>;
-                            if (part.type.startsWith("tool-")) { const p = part as any; return (<div key={i} className="mt-3 inline-flex items-center gap-2 text-[12px] rounded-xl px-3 py-2" style={{ background: "#f5f3f1", border: "1px solid rgba(0,0,0,0.04)" }}><span style={{ color: "#aaa" }}>⚡</span><span style={{ color: "#5e5e5c" }}>{p.toolName || "Tool"}</span>{p.state === "result" && <span className="text-green-600">✓</span>}{p.state === "call" && <span className="animate-pulse" style={{ color: "#aaa" }}>...</span>}</div>); }
+                            if (part.type === "text") return <div key={i} className="text-[14px] leading-[1.8] whitespace-pre-wrap" style={{ color: tc("#222", "#ddd") }}>{renderMessageContent(part.text)}</div>;
+                            if (part.type.startsWith("tool-")) { const p = part as any; return (<div key={i} className="mt-2 inline-flex items-center gap-1.5 text-[11px] rounded-lg px-2.5 py-1.5" style={{ background: tc("rgba(0,0,0,0.03)", "rgba(255,255,255,0.04)"), border: `1px solid ${tc("rgba(0,0,0,0.05)", "rgba(255,255,255,0.06)")}`, color: tc("#666", "#999") }}><span>⚡</span><span>{p.toolName || "Tool"}</span>{p.state === "result" && <span className="text-green-500">✓</span>}{p.state === "call" && <span className="animate-pulse">…</span>}</div>); }
                             return null;
                           })}
                         </div>
@@ -458,33 +452,34 @@ export default function ChatPage() {
                   </div>
                 ))}
                 {(status === "submitted" || status === "streaming") && messages[messages.length - 1]?.role !== "assistant" && (
-                  <div className="flex items-center gap-3" style={{ animation: "fadeIn 0.3s ease-out" }}>
-                    <div className="flex gap-1.5">
-                      <span className="w-2 h-2 rounded-full animate-bounce" style={{ background: "rgba(28,27,27,0.2)", animationDelay: "0s" }} />
-                      <span className="w-2 h-2 rounded-full animate-bounce" style={{ background: "rgba(28,27,27,0.2)", animationDelay: "0.2s" }} />
-                      <span className="w-2 h-2 rounded-full animate-bounce" style={{ background: "rgba(28,27,27,0.2)", animationDelay: "0.4s" }} />
+                  <div className="flex gap-3" style={{ animation: "fadeIn 0.2s ease-out" }}>
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0" style={{ background: tc("rgba(0,0,0,0.04)", "rgba(255,255,255,0.06)") }}>
+                      <span className="text-[9px] font-bold" style={{ color: "#888" }}>AI</span>
                     </div>
-                    <p className="text-[12px] italic" style={{ color: "#747878" }}>Processing...</p>
+                    <div className="flex items-center gap-1.5 pt-1">
+                      <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "var(--accent, #999)", animationDelay: "0ms" }} />
+                      <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "var(--accent, #999)", animationDelay: "150ms" }} />
+                      <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "var(--accent, #999)", animationDelay: "300ms" }} />
+                    </div>
                   </div>
                 )}
                 <div ref={messagesEndRef} />
               </div>
             </section>
 
-            {/* Floating Input */}
-            <footer className="absolute bottom-0 left-0 w-full px-10 pb-7 pt-4 pointer-events-none" style={{ background: "linear-gradient(to top, var(--bg, #fdf8f8) 60%, transparent)" }}>
-              <div className="max-w-[720px] mx-auto pointer-events-auto">
-                <form onSubmit={handleSubmit} className="flex items-center gap-3 rounded-2xl p-3" style={{ background: isDark ? "rgba(20,20,30,0.9)" : "rgba(255,255,255,0.9)", backdropFilter: "blur(16px)", boxShadow: "0 4px 24px rgba(0,0,0,0.04)", border: isDark ? "1px solid rgba(255,255,255,0.06)" : "1px solid rgba(0,0,0,0.05)" }}>
+            <footer className="absolute bottom-0 left-0 w-full px-8 pb-6 pt-4 pointer-events-none" style={{ background: `linear-gradient(to top, var(--bg) 50%, transparent)` }}>
+              <div className="max-w-[680px] mx-auto pointer-events-auto">
+                <form onSubmit={handleSubmit} className="flex items-center gap-2.5 rounded-2xl px-4 py-2" style={{ background: tc("rgba(255,255,255,0.85)", "rgba(20,22,30,0.85)"), backdropFilter: "blur(16px)", border: `1px solid ${tc("rgba(0,0,0,0.06)", "rgba(255,255,255,0.06)")}`, boxShadow: tc("0 4px 20px rgba(0,0,0,0.04)", "0 4px 20px rgba(0,0,0,0.4)") }}>
                   <input
                     value={input}
                     onChange={e => setInput(e.target.value)}
                     onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(e); } }}
-                    className="flex-1 bg-transparent text-[14px] placeholder:text-[#aaa] outline-none py-3 px-3"
-                    style={{ color: isDark ? "#e5e5e5" : "#1c1b1b" }}
-                    placeholder="Type your instruction..."
+                    className="flex-1 bg-transparent text-[14px] outline-none py-2.5 px-2"
+                    style={{ color: tc("#111", "#e5e5e5") }}
+                    placeholder="Reply..."
                     disabled={status !== "ready"}
                   />
-                  <button type="submit" disabled={status !== "ready" || !input.trim()} className="w-10 h-10 rounded-full text-white flex items-center justify-center disabled:opacity-20 hover:scale-105 active:scale-95 transition-transform" style={{ background: "var(--accent, #1c1b1b)", boxShadow: "0 2px 8px rgba(0,0,0,0.12)" }}>↑</button>
+                  <button type="submit" disabled={status !== "ready" || !input.trim()} className="w-8 h-8 rounded-full text-white flex items-center justify-center disabled:opacity-15 hover:scale-105 active:scale-95 transition-all text-[12px]" style={{ background: "var(--accent, #111)" }}>↑</button>
                 </form>
               </div>
             </footer>
@@ -493,10 +488,10 @@ export default function ChatPage() {
       </main>
 
       <style jsx global>{`
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
-        :root { --accent: #1c1b1b; --bg: #fdf8f8; }
-        * { transition: background-color 0.5s ease, border-color 0.4s ease, color 0.3s ease, box-shadow 0.4s ease; }
-        body { background: var(--bg, #fdf8f8); -webkit-font-smoothing: antialiased; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        :root { --accent: #4A6FA5; --bg: #f2f6fc; }
+        body { background: var(--bg); -webkit-font-smoothing: antialiased; }
+        * { transition: background-color 0.4s ease, border-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease; }
       `}</style>
     </div>
   );
