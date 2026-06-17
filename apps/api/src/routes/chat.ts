@@ -90,17 +90,23 @@ async function getMcpClient(tenantId: string) {
 
 // ─── HELPERS ───
 async function streamToResponse(result: any, res: any, threadId?: string) {
-  const response = result.toUIMessageStreamResponse();
-  res.status(response.status);
-  response.headers.forEach((v: string, k: string) => res.setHeader(k, v));
-  if (response.body) {
-    const reader = response.body.getReader();
-    while (true) { const { done, value } = await reader.read(); if (done) break; res.write(value); }
+  try {
+    const response = result.toUIMessageStreamResponse();
+    res.status(response.status);
+    response.headers.forEach((v: string, k: string) => res.setHeader(k, v));
+    if (response.body) {
+      const reader = response.body.getReader();
+      while (true) { const { done, value } = await reader.read(); if (done) break; res.write(value); }
+    }
+  } catch (e) {
+    console.error("[stream] error:", e);
+  } finally {
+    res.end();
   }
-  res.end();
-  // Persist assistant response
-  const text = await result.text;
-  if (threadId && text) await pool.query(`INSERT INTO messages (id, thread_id, role, content, created_at) VALUES (gen_random_uuid(), $1, 'assistant', $2, NOW())`, [threadId, text]).catch(() => {});
+  // Persist async
+  result.text.then((text: string) => {
+    if (threadId && text) pool.query(`INSERT INTO messages (id, thread_id, role, content, created_at) VALUES (gen_random_uuid(), $1, 'assistant', $2, NOW())`, [threadId, text]).catch(() => {});
+  }).catch(() => {});
 }
 
 // ─── MAIN HANDLER ───

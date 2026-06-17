@@ -9,41 +9,27 @@ type Thread = { id: string; title: string; pinned: boolean; archived: boolean; c
 type ConnectStatus = { gmail: boolean; googlecalendar: boolean };
 type User = { id: string; name: string; email: string; image?: string };
 
-function ThreadMenu({ thread, onAction }: { thread: Thread; onAction: (action: string, id: string, data?: any) => void }) {
+function ThreadMenu({ thread, onAction, isRenaming, setRenaming }: { thread: Thread; onAction: (action: string, id: string, data?: any) => void; isRenaming: boolean; setRenaming: (v: boolean) => void }) {
   const [open, setOpen] = useState(false);
-  const [renaming, setRenaming] = useState(false);
-  const [title, setTitle] = useState(thread.title);
-
-  if (renaming) return (
-    <input
-      autoFocus
-      value={title}
-      onChange={e => setTitle(e.target.value)}
-      onBlur={() => { onAction("rename", thread.id, title); setRenaming(false); }}
-      onKeyDown={e => { if (e.key === "Enter") { onAction("rename", thread.id, title); setRenaming(false); } if (e.key === "Escape") setRenaming(false); }}
-      className="w-full bg-white/10 text-white text-xs px-2 py-1 rounded outline-none"
-      onClick={e => e.stopPropagation()}
-    />
-  );
 
   return (
     <div className="relative">
-      <button onClick={e => { e.stopPropagation(); setOpen(!open); }} className="p-1 rounded hover:bg-white/10 text-[#71717A] hover:text-white transition-colors">
+      <button onClick={e => { e.stopPropagation(); setOpen(!open); }} className="p-1 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-900 transition-colors">
         <MoreHorizontalIcon size={14} />
       </button>
       {open && (
-        <div className="absolute right-0 top-7 z-50 w-36 bg-[#1c1b1b] border border-white/10 rounded-lg shadow-2xl py-1 animate-[fadeIn_0.15s_ease-out]" onMouseLeave={() => setOpen(false)}>
-          <button onClick={e => { e.stopPropagation(); setRenaming(true); setOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[#e5e2e1] hover:bg-white/[0.06] transition-colors">
+        <div className="absolute right-0 top-7 z-50 w-36 bg-gray-100 border border-gray-200 rounded-lg shadow-2xl py-1 animate-[fadeIn_0.15s_ease-out]" onMouseLeave={() => setOpen(false)}>
+          <button onClick={e => { e.stopPropagation(); setRenaming(true); setOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-900 hover:bg-gray-100 transition-colors">
             <Edit02Icon size={12} /> Rename
           </button>
-          <button onClick={e => { e.stopPropagation(); onAction("pin", thread.id); setOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[#e5e2e1] hover:bg-white/[0.06] transition-colors">
+          <button onClick={e => { e.stopPropagation(); onAction("pin", thread.id); setOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-900 hover:bg-gray-100 transition-colors">
             <PinIcon size={12} /> {thread.pinned ? "Unpin" : "Pin"}
           </button>
-          <button onClick={e => { e.stopPropagation(); onAction("archive", thread.id); setOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[#e5e2e1] hover:bg-white/[0.06] transition-colors">
+          <button onClick={e => { e.stopPropagation(); onAction("archive", thread.id); setOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-900 hover:bg-gray-100 transition-colors">
             <Archive01Icon size={12} /> Archive
           </button>
-          <div className="border-t border-white/[0.06] my-1" />
-          <button onClick={e => { e.stopPropagation(); onAction("delete", thread.id); setOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-400 hover:bg-red-500/10 transition-colors">
+          <div className="border-t border-gray-200 my-1" />
+          <button onClick={e => { e.stopPropagation(); onAction("delete", thread.id); setOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-500 hover:bg-red-50 transition-colors">
             <Delete02Icon size={12} /> Delete
           </button>
         </div>
@@ -69,17 +55,17 @@ function EmailDraftCard({ to, subject, body }: { to: string; subject: string; bo
   };
 
   if (sent) return (
-    <div className="mt-3 px-4 py-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center gap-2">
-      <SentIcon size={14} className="text-emerald-400" />
-      <span className="text-xs text-emerald-300">Email sent to {to}</span>
+    <div className="mt-3 px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2">
+      <SentIcon size={14} className="text-emerald-600" />
+      <span className="text-xs text-emerald-700">Email sent to {to}</span>
     </div>
   );
 
   return (
     <div className="mt-3 bg-white rounded-lg overflow-hidden shadow-xl max-w-[420px] border border-gray-300/80">
       {/* Title bar */}
-      <div className="bg-[#404040] px-4 py-2 flex items-center justify-between">
-        <span className="text-[13px] text-white font-medium">New Message</span>
+      <div className="bg-gray-700 px-4 py-2 flex items-center justify-between">
+        <span className="text-[13px] text-gray-900 font-medium">New Message</span>
         <div className="flex gap-2">
           <div className="w-2.5 h-2.5 rounded-full bg-gray-500" />
           <div className="w-2.5 h-2.5 rounded-full bg-gray-500" />
@@ -103,7 +89,7 @@ function EmailDraftCard({ to, subject, body }: { to: string; subject: string; bo
         <button
           onClick={handleSend}
           disabled={sending}
-          className="px-5 py-[7px] bg-[#0b57d0] text-white text-[13px] font-medium rounded-full hover:bg-[#0842a0] hover:shadow-md active:scale-[0.97] transition-all disabled:opacity-50 flex items-center gap-1.5"
+          className="px-5 py-[7px] bg-[#0b57d0] text-gray-900 text-[13px] font-medium rounded-full hover:bg-[#0842a0] hover:shadow-md active:scale-[0.97] transition-all disabled:opacity-50 flex items-center gap-1.5"
         >
           {sending ? "Sending..." : "Send"}
         </button>
@@ -142,29 +128,87 @@ function renderMessageContent(text: string) {
   return parts.length > 0 ? parts : text;
 }
 
+function ThreadItem({ thread, active, onSelect, onAction }: { thread: Thread; active: boolean; onSelect: () => void; onAction: (action: string, id: string, data?: any) => void }) {
+  const [renaming, setRenaming] = useState(false);
+  const [title, setTitle] = useState(thread.title);
+
+  useEffect(() => { setTitle(thread.title); }, [thread.title]);
+
+  if (renaming) return (
+    <div className="px-2 py-1">
+      <input
+        autoFocus
+        value={title}
+        onChange={e => setTitle(e.target.value)}
+        onBlur={() => { if (title.trim()) onAction("rename", thread.id, title); setRenaming(false); }}
+        onKeyDown={e => { if (e.key === "Enter") { if (title.trim()) onAction("rename", thread.id, title); setRenaming(false); } if (e.key === "Escape") { setTitle(thread.title); setRenaming(false); } }}
+        className="w-full bg-gray-200 text-gray-900 text-xs px-2 py-1.5 rounded outline-none border border-gray-300"
+        onClick={e => e.stopPropagation()}
+      />
+    </div>
+  );
+
+  return (
+    <div className={`group flex items-center rounded-lg transition-all duration-150 ${active ? "bg-gray-100" : "hover:bg-gray-50"}`}>
+      <button onClick={onSelect} className={`flex-1 flex items-center gap-2 px-3 py-2 text-left text-xs truncate ${active ? "text-gray-900" : "text-gray-500 hover:text-gray-700"}`}>
+        {thread.pinned && <PinIcon size={10} className="shrink-0 text-gray-400" />}
+        <span className="truncate">{thread.title}</span>
+      </button>
+      <div className="hidden group-hover:block pr-1">
+        <ThreadMenu thread={thread} onAction={onAction} isRenaming={renaming} setRenaming={setRenaming} />
+      </div>
+    </div>
+  );
+}
+
+function groupThreadsByDate(threads: Thread[]) {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today.getTime() - 86400000);
+  const weekAgo = new Date(today.getTime() - 7 * 86400000);
+
+  const groups: { label: string; threads: Thread[] }[] = [];
+  const pinned = threads.filter(t => t.pinned);
+  const unpinned = threads.filter(t => !t.pinned);
+
+  if (pinned.length) groups.push({ label: "Pinned", threads: pinned });
+
+  const todayThreads = unpinned.filter(t => new Date(t.created_at) >= today);
+  const yesterdayThreads = unpinned.filter(t => { const d = new Date(t.created_at); return d >= yesterday && d < today; });
+  const weekThreads = unpinned.filter(t => { const d = new Date(t.created_at); return d >= weekAgo && d < yesterday; });
+  const olderThreads = unpinned.filter(t => new Date(t.created_at) < weekAgo);
+
+  if (todayThreads.length) groups.push({ label: "Today", threads: todayThreads });
+  if (yesterdayThreads.length) groups.push({ label: "Yesterday", threads: yesterdayThreads });
+  if (weekThreads.length) groups.push({ label: "This Week", threads: weekThreads });
+  if (olderThreads.length) groups.push({ label: "Older", threads: olderThreads });
+
+  return groups;
+}
+
 function ConnectModal({ status, onConnect }: { status: ConnectStatus; onConnect: (plugin: string) => void }) {
   if (status.gmail && status.googlecalendar) return null;
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center">
-      <div className="bg-[#1c1b1b] rounded-2xl p-10 max-w-lg w-full mx-4 border border-white/[0.06]">
-        <h2 className="text-2xl font-semibold text-white tracking-tight mb-2">Connect your accounts</h2>
-        <p className="text-[#71717A] text-sm mb-8 leading-relaxed">One-time setup. Inhumane needs access to operate on your behalf. Your credentials are encrypted and never shared.</p>
+    <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-50 flex items-center justify-center">
+      <div className="bg-gray-100 rounded-2xl p-10 max-w-lg w-full mx-4 border border-gray-200">
+        <h2 className="text-2xl font-semibold text-gray-900 tracking-tight mb-2">Connect your accounts</h2>
+        <p className="text-gray-500 text-sm mb-8 leading-relaxed">One-time setup. Inhumane needs access to operate on your behalf. Your credentials are encrypted and never shared.</p>
         <div className="space-y-3">
           {!status.gmail && (
-            <button onClick={() => onConnect("gmail")} className="w-full flex items-center gap-4 px-5 py-4 rounded-xl bg-[#121316] hover:bg-[#1D1F24] border border-white/[0.06] transition-all duration-150 active:scale-[0.98]">
-              <Mail01Icon size={20} className="text-white/60" />
-              <div className="text-left"><div className="text-sm font-medium text-white">Connect Gmail</div><div className="text-xs text-[#71717A] mt-0.5">Read, send, and manage emails</div></div>
+            <button onClick={() => onConnect("gmail")} className="w-full flex items-center gap-4 px-5 py-4 rounded-xl bg-gray-50 hover:bg-gray-100 border border-gray-200 transition-all duration-150 active:scale-[0.98]">
+              <Mail01Icon size={20} className="text-gray-500" />
+              <div className="text-left"><div className="text-sm font-medium text-gray-900">Connect Gmail</div><div className="text-xs text-gray-500 mt-0.5">Read, send, and manage emails</div></div>
             </button>
           )}
           {!status.googlecalendar && (
-            <button onClick={() => onConnect("googlecalendar")} className="w-full flex items-center gap-4 px-5 py-4 rounded-xl bg-[#121316] hover:bg-[#1D1F24] border border-white/[0.06] transition-all duration-150 active:scale-[0.98]">
-              <Calendar03Icon size={20} className="text-white/60" />
-              <div className="text-left"><div className="text-sm font-medium text-white">Connect Calendar</div><div className="text-xs text-[#71717A] mt-0.5">View and create events</div></div>
+            <button onClick={() => onConnect("googlecalendar")} className="w-full flex items-center gap-4 px-5 py-4 rounded-xl bg-gray-50 hover:bg-gray-100 border border-gray-200 transition-all duration-150 active:scale-[0.98]">
+              <Calendar03Icon size={20} className="text-gray-500" />
+              <div className="text-left"><div className="text-sm font-medium text-gray-900">Connect Calendar</div><div className="text-xs text-gray-500 mt-0.5">View and create events</div></div>
             </button>
           )}
         </div>
         {(status.gmail || status.googlecalendar) && (
-          <p className="text-xs text-[#71717A] mt-5 text-center">{status.gmail ? "✓ Gmail connected" : "✓ Calendar connected"}</p>
+          <p className="text-xs text-gray-500 mt-5 text-center">{status.gmail ? "✓ Gmail connected" : "✓ Calendar connected"}</p>
         )}
       </div>
     </div>
@@ -180,14 +224,17 @@ export default function ChatPage() {
   const [showChat, setShowChat] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Transport must be recreated when activeThread changes
+  // Stable transport - threadId passed via body dynamically
+  const activeThreadRef = useRef<string | null>(null);
+  activeThreadRef.current = activeThread;
+
   const transport = useMemo(() => new DefaultChatTransport({
     api: "/api/chat",
     credentials: "include",
-    body: { threadId: activeThread },
-  }), [activeThread]);
+    body: () => ({ threadId: activeThreadRef.current }),
+  }), []);
 
-  const { messages, sendMessage, status, setMessages } = useChat({ transport, id: activeThread || "new" });
+  const { messages, sendMessage, status, setMessages } = useChat({ transport });
 
   useEffect(() => {
     fetch("/api/threads", { credentials: "include" }).then(r => r.json()).then(setThreads).catch(() => {});
@@ -215,8 +262,12 @@ export default function ChatPage() {
     return () => window.removeEventListener("message", handler);
   }, []);
 
+  const justCreatedRef = useRef(false);
+
   useEffect(() => {
     if (!activeThread) { setMessages([]); setShowChat(false); return; }
+    // Skip DB load if we just created this thread (messages are already in useChat state)
+    if (justCreatedRef.current) { justCreatedRef.current = false; return; }
     setShowChat(true);
     fetch(`/api/threads/${activeThread}/messages`, { credentials: "include" })
       .then(r => r.json())
@@ -239,8 +290,9 @@ export default function ChatPage() {
       setThreads(prev => prev.map(t => t.id === id ? { ...t, title: data } : t));
     } else if (action === "pin") {
       const thread = threads.find(t => t.id === id);
-      await fetch(`/api/threads/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ pinned: !thread?.pinned }) });
-      setThreads(prev => prev.map(t => t.id === id ? { ...t, pinned: !t.pinned } : t).sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0)));
+      const newPinned = !thread?.pinned;
+      await fetch(`/api/threads/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ pinned: newPinned }) });
+      setThreads(prev => prev.map(t => t.id === id ? { ...t, pinned: newPinned } : t));
     } else if (action === "archive") {
       await fetch(`/api/threads/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ archived: true }) });
       setThreads(prev => prev.filter(t => t.id !== id));
@@ -259,10 +311,10 @@ export default function ChatPage() {
       .then(r => r.json())
       .then(thread => {
         setThreads(prev => [thread, ...prev]);
+        justCreatedRef.current = true;
         setActiveThread(thread.id);
         setShowChat(true);
-        // sendMessage will be called after transport updates via useMemo
-        setTimeout(() => sendMessage({ text }), 100);
+        sendMessage({ text });
         setInput("");
       });
   };
@@ -276,46 +328,44 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex h-screen bg-[#0B0B0C] text-[#e5e2e1] font-[Inter]">
+    <div className="flex h-screen bg-white text-gray-900 font-[Inter]">
       <ConnectModal status={connectStatus} onConnect={openConnectPopup} />
 
       {/* Sidebar */}
-      <aside className="w-64 h-screen fixed left-0 top-0 flex flex-col py-8 px-5 bg-[#121316] border-r border-white/[0.06] z-40">
+      <aside className="w-64 h-screen fixed left-0 top-0 flex flex-col py-8 px-5 bg-gray-50 border-r border-gray-200 z-40">
         <div className="mb-8 px-1">
-          <h1 className="text-xl font-bold text-white tracking-tight">Inhumane</h1>
-          <p className="text-[10px] text-[#71717A] uppercase tracking-[0.15em] mt-1">AI Operator</p>
+          <h1 className="text-xl font-bold text-gray-900 tracking-tight">Inhumane</h1>
+          <p className="text-[10px] text-gray-500 uppercase tracking-[0.15em] mt-1">AI Operator</p>
         </div>
         <nav className="space-y-1 mb-4">
-          <button onClick={() => { setActiveThread(null); setShowChat(false); setMessages([]); }} className={`flex items-center gap-3 px-3 py-2.5 rounded-lg w-full text-left transition-all duration-150 ${!activeThread && !showChat ? "text-white border-l-2 border-white bg-white/[0.06]" : "text-[#71717A] hover:bg-white/[0.04]"}`}>
+          <button onClick={() => { setActiveThread(null); setShowChat(false); setMessages([]); }} className={`flex items-center gap-3 px-3 py-2.5 rounded-lg w-full text-left transition-all duration-150 ${!activeThread && !showChat ? "text-gray-900 border-l-2 border-white bg-gray-100" : "text-gray-500 hover:bg-gray-50"}`}>
             <Home01Icon size={16} /><span className="text-xs font-medium">Workspace</span>
           </button>
         </nav>
-        <div className="flex-1 overflow-y-auto space-y-0.5">
-          {threads.map(t => (
-            <div key={t.id} className={`group flex items-center rounded-lg transition-all duration-150 ${activeThread === t.id ? "bg-white/[0.06]" : "hover:bg-white/[0.04]"}`}>
-              <button onClick={() => setActiveThread(t.id)} className={`flex-1 flex items-center gap-2 px-3 py-2 text-left text-xs truncate ${activeThread === t.id ? "text-white" : "text-[#71717A] hover:text-white/80"}`}>
-                {t.pinned && <PinIcon size={10} className="shrink-0 text-white/50" />}
-                <Clock01Icon size={12} className="shrink-0 opacity-50" />
-                <span className="truncate">{t.title}</span>
-              </button>
-              <div className="hidden group-hover:block pr-1">
-                <ThreadMenu thread={t} onAction={handleThreadAction} />
+        <div className="flex-1 overflow-y-auto space-y-3 px-1">
+          {groupThreadsByDate(threads).map(group => (
+            <div key={group.label}>
+              <p className="text-[10px] text-gray-500 uppercase tracking-[0.1em] px-2 mb-1">{group.label}</p>
+              <div className="space-y-0.5">
+                {group.threads.map(t => (
+                  <ThreadItem key={t.id} thread={t} active={activeThread === t.id} onSelect={() => setActiveThread(t.id)} onAction={handleThreadAction} />
+                ))}
               </div>
             </div>
           ))}
         </div>
         <div className="mt-auto pt-6 space-y-3">
-          <button onClick={() => { setActiveThread(null); setShowChat(true); setMessages([]); }} className="w-full flex items-center justify-center gap-2 py-2.5 bg-white text-black text-xs font-medium rounded-lg active:scale-[0.97] transition-transform duration-150">
+          <button onClick={() => { setActiveThread(null); setShowChat(true); setMessages([]); }} className="w-full flex items-center justify-center gap-2 py-2.5 bg-gray-900 text-white text-xs font-medium rounded-lg active:scale-[0.97] transition-transform duration-150 hover:bg-gray-800">
             <PlusSignIcon size={14} /> New Chat
           </button>
           {user && (
             <div className="flex items-center gap-3 px-1 pt-2">
               {user.image && <img src={user.image} alt="" className="w-7 h-7 rounded-full ring-1 ring-white/10" />}
               <div className="flex-1 min-w-0">
-                <p className="text-[11px] font-medium text-white truncate">{user.name}</p>
-                <p className="text-[10px] text-[#71717A] truncate">{user.email}</p>
+                <p className="text-[11px] font-medium text-gray-900 truncate">{user.name}</p>
+                <p className="text-[10px] text-gray-500 truncate">{user.email}</p>
               </div>
-              <button onClick={() => { fetch("/api/auth/sign-out", { method: "POST", credentials: "include" }).then(() => { localStorage.removeItem("inhumane-onboarded"); window.location.href = "/"; }); }} className="text-[#71717A] hover:text-white transition-colors">
+              <button onClick={() => { fetch("/api/auth/sign-out", { method: "POST", credentials: "include" }).then(() => { localStorage.removeItem("inhumane-onboarded"); window.location.href = "/"; }); }} className="text-gray-500 hover:text-gray-900 transition-colors">
                 <Logout03Icon size={14} />
               </button>
             </div>
@@ -327,44 +377,45 @@ export default function ChatPage() {
       <main className="pl-64 flex-1 flex flex-col min-h-screen relative">
         {!showChat ? (
           <div className="flex-1 flex flex-col items-center justify-center relative">
-            <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at 50% 40%, rgba(255,255,255,0.015) 0%, transparent 60%)" }} />
+            <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at 50% 40%, rgba(0,0,0,0.02) 0%, transparent 60%)" }} />
             <div className="w-full max-w-2xl px-6 relative z-10 flex flex-col items-center animate-[fadeIn_0.5s_ease-out]">
-              <h2 className="text-[52px] font-semibold text-white tracking-[-0.04em] leading-[1.1] text-center">
+              <h2 className="text-[52px] font-semibold text-gray-900 tracking-[-0.04em] leading-[1.1] text-center">
                 Work at Inhumane Speed.
               </h2>
-              <div className="h-px w-16 bg-white/10 mt-6 mb-10" />
+              <div className="h-px w-16 bg-gray-200 mt-6 mb-10" />
               <form onSubmit={handleSubmit} className="w-full animate-[fadeIn_0.7s_ease-out_0.15s_both]">
-                <div className="relative group">
-                  <input
+                <div className="relative group w-full">
+                  <textarea
                     value={input}
                     onChange={e => setInput(e.target.value)}
-                    onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(e); } }}
-                    className="w-full h-14 bg-[#121316] px-6 pr-24 rounded-2xl border border-white/[0.06] ring-0 focus:ring-1 focus:ring-white/10 focus:bg-[#17181C] focus:border-white/10 text-[15px] text-white placeholder:text-[#71717A]/60 transition-all duration-200 outline-none"
-                    placeholder="Ask anything — send email, check calendar..."
+                    onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(e as any); } }}
+                    rows={4}
+                    className="w-full bg-white px-5 py-4 rounded-xl border border-gray-200 shadow-sm ring-0 focus:ring-2 focus:ring-gray-900/10 focus:border-gray-300 text-[15px] text-gray-900 placeholder:text-gray-400 transition-all duration-200 outline-none resize-none"
+                    placeholder="Ask anything — send email, check calendar, create events..."
                   />
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                    <kbd className="hidden md:flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-white/[0.06] text-[10px] font-mono text-[#71717A]">⌘K</kbd>
-                    <button type="submit" disabled={!input.trim()} className="flex items-center justify-center w-8 h-8 rounded-lg bg-white text-black disabled:opacity-20 hover:scale-105 active:scale-95 transition-transform duration-150 text-sm font-medium">→</button>
+                  <div className="absolute right-3 bottom-3 flex items-center gap-2">
+                    <kbd className="hidden md:flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-gray-100 border border-gray-200 text-[10px] font-mono text-gray-500">⌘K</kbd>
+                    <button type="submit" disabled={!input.trim()} className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-900 text-white disabled:opacity-20 hover:bg-gray-800 active:scale-95 transition-all duration-150 text-sm font-medium">→</button>
                   </div>
                 </div>
               </form>
-              <p className="mt-5 text-[13px] text-[#71717A] animate-[fadeIn_0.9s_ease-out_0.25s_both]">Your AI operator for email, calendar, and workflows.</p>
+              <p className="mt-5 text-[13px] text-gray-500 animate-[fadeIn_0.9s_ease-out_0.25s_both]">Your AI operator for email, calendar, and workflows.</p>
 
               <div className="grid grid-cols-3 gap-3 mt-14 w-full animate-[fadeIn_1s_ease-out_0.4s_both]">
-                <button onClick={() => startNewChat("Show my latest 5 emails")} className="p-5 rounded-xl bg-[#121316] hover:bg-[#1D1F24] border border-white/[0.04] hover:border-white/[0.08] transition-all duration-150 text-left group active:scale-[0.98]">
-                  <Mail01Icon size={18} className="text-white/30 group-hover:text-white/70 transition-colors mb-3" />
-                  <h3 className="text-[13px] font-medium text-white mb-1">Read Inbox</h3>
-                  <p className="text-[11px] text-[#71717A] leading-relaxed">Summarize recent emails.</p>
+                <button onClick={() => startNewChat("Show my latest 5 emails")} className="p-5 rounded-xl bg-gray-50 hover:bg-gray-100 border border-gray-100 hover:border-gray-200 transition-all duration-150 text-left group active:scale-[0.98]">
+                  <Mail01Icon size={18} className="text-gray-300 group-hover:text-gray-600 transition-colors mb-3" />
+                  <h3 className="text-[13px] font-medium text-gray-900 mb-1">Read Inbox</h3>
+                  <p className="text-[11px] text-gray-500 leading-relaxed">Summarize recent emails.</p>
                 </button>
-                <button onClick={() => startNewChat("What's on my calendar today?")} className="p-5 rounded-xl bg-[#121316] hover:bg-[#1D1F24] border border-white/[0.04] hover:border-white/[0.08] transition-all duration-150 text-left group active:scale-[0.98]">
-                  <Calendar03Icon size={18} className="text-white/30 group-hover:text-white/70 transition-colors mb-3" />
-                  <h3 className="text-[13px] font-medium text-white mb-1">Today's Schedule</h3>
-                  <p className="text-[11px] text-[#71717A] leading-relaxed">Check your calendar.</p>
+                <button onClick={() => startNewChat("What's on my calendar today?")} className="p-5 rounded-xl bg-gray-50 hover:bg-gray-100 border border-gray-100 hover:border-gray-200 transition-all duration-150 text-left group active:scale-[0.98]">
+                  <Calendar03Icon size={18} className="text-gray-300 group-hover:text-gray-600 transition-colors mb-3" />
+                  <h3 className="text-[13px] font-medium text-gray-900 mb-1">Today's Schedule</h3>
+                  <p className="text-[11px] text-gray-500 leading-relaxed">Check your calendar.</p>
                 </button>
-                <button onClick={() => startNewChat("Draft an email")} className="p-5 rounded-xl bg-[#121316] hover:bg-[#1D1F24] border border-white/[0.04] hover:border-white/[0.08] transition-all duration-150 text-left group active:scale-[0.98]">
-                  <PencilEdit01Icon size={18} className="text-white/30 group-hover:text-white/70 transition-colors mb-3" />
-                  <h3 className="text-[13px] font-medium text-white mb-1">Draft Email</h3>
-                  <p className="text-[11px] text-[#71717A] leading-relaxed">Compose something fast.</p>
+                <button onClick={() => startNewChat("Draft an email")} className="p-5 rounded-xl bg-gray-50 hover:bg-gray-100 border border-gray-100 hover:border-gray-200 transition-all duration-150 text-left group active:scale-[0.98]">
+                  <PencilEdit01Icon size={18} className="text-gray-300 group-hover:text-gray-600 transition-colors mb-3" />
+                  <h3 className="text-[13px] font-medium text-gray-900 mb-1">Draft Email</h3>
+                  <p className="text-[11px] text-gray-500 leading-relaxed">Compose something fast.</p>
                 </button>
               </div>
             </div>
@@ -374,17 +425,17 @@ export default function ChatPage() {
             <div className="flex-1 overflow-y-auto px-10 py-8 space-y-5">
               {messages.map(message => (
                 <div key={message.id} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"} animate-[fadeIn_0.2s_ease-out]`}>
-                  <div className={`max-w-[65%] rounded-2xl px-5 py-3.5 ${message.role === "user" ? "bg-white/[0.08] text-white" : "bg-[#151517] border border-white/[0.04] text-[#e5e2e1]"}`}>
+                  <div className={`max-w-[65%] rounded-2xl px-5 py-3.5 ${message.role === "user" ? "bg-gray-100 text-gray-900" : "bg-gray-50 border border-gray-100 text-gray-900"}`}>
                     {message.parts.map((part, i) => {
                       if (part.type === "text") return <div key={i} className="whitespace-pre-wrap text-[14px] leading-[1.7]">{renderMessageContent(part.text)}</div>;
                       if (part.type.startsWith("tool-")) {
                         const p = part as any;
                         return (
-                          <div key={i} className="mt-3 text-xs bg-[#0B0B0C] border border-white/[0.06] rounded-lg px-3 py-2 flex items-center gap-2">
-                            <span className="text-white/40">⚡</span>
-                            <span className="font-medium text-white/70">{p.toolName || "Tool"}</span>
-                            {p.state === "result" && <span className="ml-auto text-emerald-400 text-[10px]">✓</span>}
-                            {p.state === "call" && <span className="ml-auto text-[#71717A] text-[10px] animate-pulse">•••</span>}
+                          <div key={i} className="mt-3 text-xs bg-white border border-gray-200 rounded-lg px-3 py-2 flex items-center gap-2">
+                            <span className="text-gray-400">⚡</span>
+                            <span className="font-medium text-gray-600">{p.toolName || "Tool"}</span>
+                            {p.state === "result" && <span className="ml-auto text-emerald-600 text-[10px]">✓</span>}
+                            {p.state === "call" && <span className="ml-auto text-gray-500 text-[10px] animate-pulse">•••</span>}
                           </div>
                         );
                       }
@@ -395,7 +446,7 @@ export default function ChatPage() {
               ))}
               {(status === "submitted" || status === "streaming") && messages[messages.length - 1]?.role !== "assistant" && (
                 <div className="flex justify-start animate-[fadeIn_0.2s_ease-out]">
-                  <div className="bg-[#151517] border border-white/[0.04] rounded-2xl px-5 py-3.5">
+                  <div className="bg-gray-50 border border-gray-100 rounded-2xl px-5 py-3.5">
                     <div className="flex items-center gap-1.5">
                       <div className="w-1 h-1 bg-white/50 rounded-full animate-pulse" />
                       <div className="w-1 h-1 bg-white/30 rounded-full animate-pulse [animation-delay:100ms]" />
@@ -412,11 +463,11 @@ export default function ChatPage() {
                   value={input}
                   onChange={e => setInput(e.target.value)}
                   onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(e); } }}
-                  className="w-full h-12 bg-[#121316] px-5 pr-14 rounded-xl border border-white/[0.06] ring-0 focus:ring-1 focus:ring-white/10 focus:bg-[#17181C] text-[14px] text-white placeholder:text-[#71717A]/60 transition-all duration-200 outline-none"
+                  className="w-full h-12 bg-white px-5 pr-14 rounded-xl border border-gray-200 shadow-sm ring-0 focus:ring-2 focus:ring-gray-900/10 focus:border-gray-300 text-[14px] text-gray-900 placeholder:text-gray-400 transition-all duration-200 outline-none"
                   placeholder="Message Inhumane..."
                   disabled={status !== "ready"}
                 />
-                <button type="submit" disabled={status !== "ready" || !input.trim()} className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg bg-white text-black flex items-center justify-center disabled:opacity-20 hover:scale-105 active:scale-95 transition-transform duration-150 text-sm">→</button>
+                <button type="submit" disabled={status !== "ready" || !input.trim()} className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg bg-gray-900 text-white flex items-center justify-center disabled:opacity-20 hover:bg-gray-800 active:scale-95 transition-all duration-150 text-sm">→</button>
               </form>
             </div>
           </>
