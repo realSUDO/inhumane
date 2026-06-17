@@ -3,50 +3,10 @@
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { useState, useEffect, useRef, useMemo } from "react";
+import { EmailCompose } from "./components/email-compose";
+import { CalendarEvent } from "./components/calendar-event";
+import { EmailInbox } from "./components/email-inbox";
 import { Mail01Icon, Calendar03Icon, PencilEdit01Icon, Logout03Icon, PlusSignIcon, Home01Icon, Clock01Icon, Settings01Icon, SentIcon, MoreHorizontalIcon, Delete02Icon, PinIcon, Archive01Icon, Edit02Icon } from "hugeicons-react";
-
-function SendArrowIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-      <path d="M5 4.5L19 12L5 19.5L9.5 12L5 4.5Z" />
-      <path d="M9.5 12H19" />
-    </svg>
-  );
-}
-
-function EmailTagInput({ isDark }: { isDark: boolean }) {
-  const [emails, setEmails] = useState<string[]>([]);
-  const [current, setCurrent] = useState("");
-  const tc = (l: string, d: string) => isDark ? d : l;
-
-  const addEmail = () => {
-    const trimmed = current.trim();
-    if (trimmed && trimmed.includes("@") && !emails.includes(trimmed)) {
-      setEmails([...emails, trimmed]);
-      setCurrent("");
-    }
-  };
-
-  return (
-    <div className="flex flex-wrap items-center gap-1.5 flex-1">
-      {emails.map(e => (
-        <span key={e} className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium" style={{ background: tc("rgba(0,0,0,0.04)", "rgba(255,255,255,0.08)"), color: tc("#333", "#ddd") }}>
-          {e}
-          <button onClick={() => setEmails(emails.filter(x => x !== e))} className="opacity-50 hover:opacity-100 text-[13px] leading-none">×</button>
-        </span>
-      ))}
-      <input
-        value={current}
-        onChange={e => setCurrent(e.target.value)}
-        onKeyDown={e => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); addEmail(); } }}
-        onBlur={addEmail}
-        className="flex-1 min-w-[120px] bg-transparent outline-none text-[13px]"
-        style={{ color: tc("#111", "#eee") }}
-        placeholder={emails.length ? "Add another..." : "recipient@email.com"}
-      />
-    </div>
-  );
-}
 
 type Thread = { id: string; title: string; pinned: boolean; archived: boolean; created_at: string };
 type ConnectStatus = { gmail: boolean; googlecalendar: boolean };
@@ -367,6 +327,7 @@ export default function ChatPage() {
 
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [showCalendarModal, setShowCalendarModal] = useState(false);
+  const [showInbox, setShowInbox] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -375,6 +336,7 @@ export default function ChatPage() {
     // Dev shortcuts - inject inline cards
     if (input.trim() === "sm") { setShowEmailModal(true); setShowChat(true); setInput(""); return; }
     if (input.trim() === "sc") { setShowCalendarModal(true); setShowChat(true); setInput(""); return; }
+    if (input.trim() === "sml") { setShowInbox(true); setShowChat(true); setInput(""); return; }
 
     if (!activeThread) { startNewChat(); return; }
     sendMessage({ text: input });
@@ -515,80 +477,9 @@ export default function ChatPage() {
                     </div>
                   </div>
                 )}
-                {/* Inline Email Card - Gmail Style */}
-                {showEmailModal && (
-                  <div style={{ animation: "fadeIn 0.3s ease-out" }} className="max-w-[500px]">
-                    <div className="rounded-2xl overflow-hidden" style={{ background: tc("#fff", "#1e2028"), boxShadow: tc("0 4px 24px rgba(0,0,0,0.08)", "0 4px 24px rgba(0,0,0,0.4)"), border: `1px solid ${tc("rgba(0,0,0,0.08)", "rgba(255,255,255,0.08)")}` }}>
-                      {/* Header */}
-                      <div className="flex items-center justify-between px-4 py-2.5" style={{ background: tc("#f8f9fa", "#282a34"), borderBottom: `1px solid ${tc("rgba(0,0,0,0.06)", "rgba(255,255,255,0.05)")}` }}>
-                        <div className="flex items-center gap-2">
-                          <img src="/gmail.svg" alt="Gmail" className="w-4 h-4" />
-                          <span className="text-[12px] font-medium" style={{ color: tc("#444", "#ccc") }}>New Message</span>
-                        </div>
-                        <button onClick={() => setShowEmailModal(false)} className="w-6 h-6 flex items-center justify-center rounded-full hover:opacity-60 transition-opacity text-[14px]" style={{ color: tc("#666", "#999") }}>×</button>
-                      </div>
-                      {/* To */}
-                      <div className="px-4 py-2 flex items-center gap-3" style={{ borderBottom: `1px solid ${tc("rgba(0,0,0,0.04)", "rgba(255,255,255,0.04)")}` }}>
-                        <span className="text-[12px]" style={{ color: tc("#777", "#888") }}>To</span>
-                        <EmailTagInput isDark={isDark} />
-                      </div>
-                      {/* Subject */}
-                      <div className="px-4 py-2" style={{ borderBottom: `1px solid ${tc("rgba(0,0,0,0.04)", "rgba(255,255,255,0.04)")}` }}>
-                        <input className="w-full bg-transparent outline-none text-[13px]" style={{ color: tc("#111", "#eee") }} placeholder="Subject" />
-                      </div>
-                      {/* Body */}
-                      <div className="px-4 py-3">
-                        <textarea className="w-full bg-transparent outline-none text-[13px] resize-none min-h-[140px] leading-[1.7]" style={{ color: tc("#222", "#ddd") }} placeholder="Compose email..." />
-                      </div>
-                      {/* Footer - Send on right like Gmail */}
-                      <div className="px-4 py-2.5 flex items-center justify-between" style={{ borderTop: `1px solid ${tc("rgba(0,0,0,0.06)", "rgba(255,255,255,0.05)")}` }}>
-                        <button onClick={() => setShowEmailModal(false)} className="text-[12px] px-3 py-1.5 rounded-lg hover:opacity-70 transition-opacity" style={{ color: tc("#666", "#888") }}>Discard</button>
-                        <button className="px-5 py-2 rounded-full text-[12px] font-semibold text-white flex items-center gap-1.5" style={{ background: "#1a73e8" }}>
-                          <SendArrowIcon /> Send
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Inline Calendar Card */}
-                {showCalendarModal && (
-                  <div style={{ animation: "fadeIn 0.3s ease-out" }} className="max-w-[440px]">
-                    <div className="rounded-2xl overflow-hidden" style={{ background: tc("#fff", "#1e2028"), boxShadow: tc("0 4px 24px rgba(0,0,0,0.08)", "0 4px 24px rgba(0,0,0,0.4)"), border: `1px solid ${tc("rgba(0,0,0,0.08)", "rgba(255,255,255,0.08)")}` }}>
-                      {/* Header */}
-                      <div className="flex items-center justify-between px-4 py-2.5" style={{ background: tc("#f8f9fa", "#282a34"), borderBottom: `1px solid ${tc("rgba(0,0,0,0.06)", "rgba(255,255,255,0.05)")}` }}>
-                        <div className="flex items-center gap-2">
-                          <Calendar03Icon size={14} style={{ color: "var(--accent)" }} />
-                          <span className="text-[12px] font-medium" style={{ color: tc("#444", "#ccc") }}>New Event</span>
-                        </div>
-                        <button onClick={() => setShowCalendarModal(false)} className="w-6 h-6 flex items-center justify-center rounded-full hover:opacity-60 transition-opacity text-[14px]" style={{ color: tc("#666", "#999") }}>×</button>
-                      </div>
-                      {/* Content */}
-                      <div className="px-4 py-4 space-y-4">
-                        <input className="w-full bg-transparent outline-none text-[15px] font-medium" style={{ color: tc("#111", "#eee") }} placeholder="Add title" />
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="rounded-xl px-3 py-2.5" style={{ background: tc("rgba(0,0,0,0.02)", "rgba(255,255,255,0.03)"), border: `1px solid ${tc("rgba(0,0,0,0.06)", "rgba(255,255,255,0.06)")}` }}>
-                            <label className="text-[9px] font-semibold uppercase tracking-wide block mb-1" style={{ color: tc("#999", "#666") }}>Date</label>
-                            <input type="date" className="w-full bg-transparent outline-none text-[12px]" style={{ color: tc("#111", "#eee") }} />
-                          </div>
-                          <div className="rounded-xl px-3 py-2.5" style={{ background: tc("rgba(0,0,0,0.02)", "rgba(255,255,255,0.03)"), border: `1px solid ${tc("rgba(0,0,0,0.06)", "rgba(255,255,255,0.06)")}` }}>
-                            <label className="text-[9px] font-semibold uppercase tracking-wide block mb-1" style={{ color: tc("#999", "#666") }}>Time</label>
-                            <input type="time" className="w-full bg-transparent outline-none text-[12px]" style={{ color: tc("#111", "#eee") }} />
-                          </div>
-                        </div>
-                        <input className="w-full bg-transparent outline-none text-[13px] pb-2" style={{ color: tc("#111", "#eee"), borderBottom: `1px solid ${tc("rgba(0,0,0,0.05)", "rgba(255,255,255,0.05)")}` }} placeholder="Add guests..." />
-                      </div>
-                      {/* Footer - Create on right */}
-                      <div className="px-4 py-2.5 flex items-center justify-between" style={{ borderTop: `1px solid ${tc("rgba(0,0,0,0.06)", "rgba(255,255,255,0.05)")}` }}>
-                        <button onClick={() => setShowCalendarModal(false)} className="text-[12px] px-3 py-1.5 rounded-lg hover:opacity-70 transition-opacity" style={{ color: tc("#666", "#888") }}>Cancel</button>
-                        <button className="px-5 py-2 rounded-full text-[12px] font-semibold text-white" style={{ background: "var(--accent, #111)" }}>
-                          Create Event
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
+                {showEmailModal && <EmailCompose isDark={isDark} onClose={() => setShowEmailModal(false)} />}
+                {showCalendarModal && <CalendarEvent isDark={isDark} onClose={() => setShowCalendarModal(false)} />}
+                {showInbox && <EmailInbox isDark={isDark} onClose={() => setShowInbox(false)} />}
                 <div ref={messagesEndRef} />
               </div>
             </section>
