@@ -222,6 +222,7 @@ export default function ChatPage() {
   const [connectStatus, setConnectStatus] = useState<ConnectStatus>({ gmail: true, googlecalendar: true }); // assume connected until checked
   const [user, setUser] = useState<User | null>(null);
   const [showChat, setShowChat] = useState(false);
+  const [isDark, setIsDark] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Stable transport - threadId passed via body dynamically
@@ -329,17 +330,17 @@ export default function ChatPage() {
 
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: "#fdf8f8", fontFamily: "'Inter', sans-serif" }}>
+    <div className="flex h-screen overflow-hidden" style={{ background: "var(--bg, #fdf8f8)", fontFamily: "'Inter', sans-serif" }}>
       <ConnectModal status={connectStatus} onConnect={openConnectPopup} />
 
       {/* Sidebar */}
-      <aside className="hidden md:flex flex-col h-full w-72 fixed left-0 top-0 p-7 gap-8 z-50" style={{ background: "rgba(247,243,242,0.8)", backdropFilter: "blur(12px)" }}>
+      <aside className="hidden md:flex flex-col h-full w-72 fixed left-0 top-0 p-7 gap-8 z-50" style={{ background: isDark ? "rgba(13,17,23,0.95)" : "rgba(247,243,242,0.8)", backdropFilter: "blur(12px)" }}>
         <div>
-          <h1 className="text-[28px] font-medium tracking-[-0.02em]" style={{ color: "#1c1b1b" }}>Inhumane</h1>
-          <p className="text-[11px] uppercase tracking-[0.05em] font-semibold mt-1" style={{ color: "#747878" }}>AI Workspace</p>
+          <h1 className="text-[28px] font-medium tracking-[-0.02em]" style={{ color: isDark ? "#e5e5e5" : "#1c1b1b" }}>Inhumane</h1>
+          <p className="text-[11px] uppercase tracking-[0.05em] font-semibold mt-1" style={{ color: isDark ? "#666" : "#747878" }}>AI Workspace</p>
         </div>
 
-        <button onClick={() => { setActiveThread(null); setShowChat(true); setMessages([]); }} className="flex items-center gap-3 w-full px-5 py-4 rounded-2xl text-[15px] font-medium text-white hover:opacity-90 active:scale-[0.98] transition-all" style={{ background: "#1c1b1b" }}>
+        <button onClick={() => { setActiveThread(null); setShowChat(true); setMessages([]); }} className="flex items-center gap-3 w-full px-5 py-4 rounded-2xl text-[15px] font-medium hover:opacity-90 active:scale-[0.98] transition-all" style={{ color: isDark ? "#e5e5e5" : "#fff", background: isDark ? "rgba(255,255,255,0.08)" : "#1c1b1b" }}>
           <PlusSignIcon size={18} /> New Thread
         </button>
 
@@ -354,12 +355,30 @@ export default function ChatPage() {
           ))}
         </nav>
 
+        {/* Accent Tint */}
+        <div className="flex items-center gap-3 px-2 pb-5">
+          {isDark ? (
+            <>
+              {[{ c: "#6B8AFF", bg: "#0d1117" }, { c: "#4ECDC4", bg: "#0a1614" }, { c: "#FF6B9D", bg: "#160d11" }].map(t => (
+                <button key={t.c} onClick={() => { document.documentElement.style.setProperty("--accent", t.c); document.documentElement.style.setProperty("--bg", t.bg); }} className="w-6 h-6 rounded-full ring-[1.5px] ring-white/10 hover:ring-white/40 hover:scale-[1.25] active:scale-90 transition-all cursor-pointer shadow-[0_0_12px_rgba(255,255,255,0.08)]" style={{ background: t.c }} />
+              ))}
+              <button onClick={() => { setIsDark(false); document.documentElement.classList.remove("dark"); document.documentElement.style.setProperty("--accent", "#1c1b1b"); document.documentElement.style.setProperty("--bg", "#fdf8f8"); }} className="w-6 h-6 rounded-full ring-[1.5px] ring-white/20 hover:ring-white/50 hover:scale-[1.25] active:scale-90 transition-all cursor-pointer" style={{ background: "#fff" }} />
+            </>
+          ) : (
+            <>
+              {[{ c: "#4A6FA5", bg: "#f8faff" }, { c: "#2D6A4F", bg: "#f7fbf8" }, { c: "#9B5DE5", bg: "#faf8ff" }].map(t => (
+                <button key={t.c} onClick={() => { document.documentElement.style.setProperty("--accent", t.c); document.documentElement.style.setProperty("--bg", t.bg); }} className="w-6 h-6 rounded-full ring-[1.5px] ring-black/[0.06] hover:ring-black/20 hover:scale-[1.25] active:scale-90 transition-all cursor-pointer shadow-[0_2px_6px_rgba(0,0,0,0.1)]" style={{ background: t.c }} />
+              ))}
+              <button onClick={() => { setIsDark(true); document.documentElement.classList.add("dark"); document.documentElement.style.setProperty("--accent", "#6B8AFF"); document.documentElement.style.setProperty("--bg", "#0d1117"); }} className="w-6 h-6 rounded-full ring-[1.5px] ring-black/[0.08] hover:ring-black/25 hover:scale-[1.25] active:scale-90 transition-all cursor-pointer shadow-[0_2px_6px_rgba(0,0,0,0.15)]" style={{ background: "#111" }} />
+            </>
+          )}
+        </div>
         {user && (
-          <div className="mt-auto flex items-center gap-3 pt-5" style={{ borderTop: "1px solid rgba(0,0,0,0.04)" }}>
+          <div className="mt-auto flex items-center gap-3 pt-5" style={{ borderTop: isDark ? "1px solid rgba(255,255,255,0.06)" : "1px solid rgba(0,0,0,0.04)" }}>
             {user.image && <img src={user.image} alt="" className="w-9 h-9 rounded-full object-cover" />}
             <div className="flex-1 min-w-0">
-              <p className="text-[13px] font-medium truncate" style={{ color: "#1c1b1b" }}>{user.name}</p>
-              <p className="text-[11px] truncate" style={{ color: "#747878" }}>{user.email}</p>
+              <p className="text-[13px] font-medium truncate" style={{ color: isDark ? "#e5e5e5" : "#1c1b1b" }}>{user.name}</p>
+              <p className="text-[11px] truncate" style={{ color: isDark ? "#666" : "#747878" }}>{user.email}</p>
             </div>
             <button onClick={() => { fetch("/api/auth/sign-out", { method: "POST", credentials: "include" }).then(() => { localStorage.removeItem("inhumane-onboarded"); window.location.href = "/"; }); }} className="opacity-40 hover:opacity-80 transition-opacity">
               <Logout03Icon size={16} />
@@ -373,23 +392,23 @@ export default function ChatPage() {
         {!showChat ? (
           <div className="flex-1 flex flex-col items-center justify-center px-10 pb-20">
             <div className="w-full max-w-[640px]" style={{ animation: "fadeIn 0.6s ease-out" }}>
-              <h2 className="text-[36px] font-medium tracking-[-0.02em] leading-[1.2] mb-3" style={{ color: "#1c1b1b" }}>Good to see you.</h2>
-              <p className="text-[16px] leading-[1.7] mb-10 max-w-md" style={{ color: "#5e5e5c" }}>What are we working on? I can manage your email, calendar, and everyday workflows.</p>
+              <h2 className="text-[36px] font-medium tracking-[-0.02em] leading-[1.2] mb-3" style={{ color: isDark ? "#e5e5e5" : "#1c1b1b" }}>What can I help with?</h2>
+              <p className="text-[16px] leading-[1.7] mb-10 max-w-md" style={{ color: isDark ? "#888" : "#5e5e5c" }}>Email, calendar, and everyday tasks — powered by AI.</p>
 
               <form onSubmit={handleSubmit} className="mb-6">
-                <div className="bg-white rounded-2xl p-4 transition-all" style={{ boxShadow: "0 4px 24px rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.04)" }}>
+                <div className="rounded-2xl p-4 transition-all" style={{ background: isDark ? "rgba(255,255,255,0.04)" : "#fff", boxShadow: "0 4px 24px rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.04)" }}>
                   <textarea
                     value={input}
                     onChange={e => setInput(e.target.value)}
                     onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(e as any); } }}
                     rows={3}
                     className="w-full text-[15px] placeholder:text-[#aaa] outline-none resize-none bg-transparent leading-[1.7]"
-                    style={{ color: "#1c1b1b" }}
+                    style={{ color: isDark ? "#e5e5e5" : "#1c1b1b" }}
                     placeholder="Type your instruction..."
                   />
                   <div className="flex items-center justify-between mt-3 pt-3" style={{ borderTop: "1px solid rgba(0,0,0,0.03)" }}>
                     <kbd className="px-2 py-1 rounded-lg text-[10px] font-mono" style={{ background: "#f5f3f1", color: "#888", border: "1px solid rgba(0,0,0,0.04)" }}>⌘ Enter</kbd>
-                    <button type="submit" disabled={!input.trim()} className="w-10 h-10 rounded-full text-white flex items-center justify-center disabled:opacity-20 hover:scale-105 active:scale-95 transition-transform" style={{ background: "#1c1b1b", boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}>↑</button>
+                    <button type="submit" disabled={!input.trim()} className="w-10 h-10 rounded-full text-white flex items-center justify-center disabled:opacity-20 hover:scale-105 active:scale-95 transition-transform" style={{ background: "var(--accent, #1c1b1b)", boxShadow: "0 2px 8px rgba(0,0,0,0.12)" }}>↑</button>
                   </div>
                 </div>
               </form>
@@ -415,13 +434,13 @@ export default function ChatPage() {
                   <div key={message.id} style={{ animation: "fadeIn 0.4s ease-out" }}>
                     {message.role === "user" ? (
                       <div className="flex justify-end">
-                        <div className="max-w-[80%] bg-white rounded-2xl px-5 py-4" style={{ boxShadow: "0 2px 12px rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.04)" }}>
-                          {message.parts.map((part, i) => part.type === "text" ? <p key={i} className="text-[15px] leading-[1.7] whitespace-pre-wrap" style={{ color: "#5e5e5c" }}>{part.text}</p> : null)}
+                        <div className="max-w-[80%] rounded-2xl px-5 py-4" style={{ background: isDark ? "rgba(255,255,255,0.05)" : "#fff", boxShadow: "0 2px 12px rgba(0,0,0,0.03)", border: isDark ? "1px solid rgba(255,255,255,0.06)" : "1px solid rgba(0,0,0,0.04)" }}>
+                          {message.parts.map((part, i) => part.type === "text" ? <p key={i} className="text-[15px] leading-[1.7] whitespace-pre-wrap" style={{ color: isDark ? "#bbb" : "#5e5e5c" }}>{part.text}</p> : null)}
                         </div>
                       </div>
                     ) : (
                       <div className="relative">
-                        <div className="bg-white rounded-2xl px-6 py-5 max-w-[92%]" style={{ boxShadow: "0 4px 24px rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.04)" }}>
+                        <div className="rounded-2xl px-6 py-5 max-w-[92%]" style={{ background: isDark ? "rgba(255,255,255,0.04)" : "#fff", boxShadow: "0 4px 24px rgba(0,0,0,0.03)", border: isDark ? "1px solid rgba(255,255,255,0.06)" : "1px solid rgba(0,0,0,0.04)" }}>
                           <div className="flex items-center gap-2 mb-3">
                             <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "#f5f3f1" }}>
                               <span className="text-[9px] font-bold" style={{ color: "#747878" }}>AI</span>
@@ -429,7 +448,7 @@ export default function ChatPage() {
                             <span className="text-[10px] font-semibold uppercase tracking-[0.05em]" style={{ color: "#747878" }}>Inhumane</span>
                           </div>
                           {message.parts.map((part, i) => {
-                            if (part.type === "text") return <div key={i} className="text-[15px] leading-[1.8] whitespace-pre-wrap" style={{ color: "#1c1b1b" }}>{renderMessageContent(part.text)}</div>;
+                            if (part.type === "text") return <div key={i} className="text-[15px] leading-[1.8] whitespace-pre-wrap" style={{ color: isDark ? "#e5e5e5" : "#1c1b1b" }}>{renderMessageContent(part.text)}</div>;
                             if (part.type.startsWith("tool-")) { const p = part as any; return (<div key={i} className="mt-3 inline-flex items-center gap-2 text-[12px] rounded-xl px-3 py-2" style={{ background: "#f5f3f1", border: "1px solid rgba(0,0,0,0.04)" }}><span style={{ color: "#aaa" }}>⚡</span><span style={{ color: "#5e5e5c" }}>{p.toolName || "Tool"}</span>{p.state === "result" && <span className="text-green-600">✓</span>}{p.state === "call" && <span className="animate-pulse" style={{ color: "#aaa" }}>...</span>}</div>); }
                             return null;
                           })}
@@ -453,19 +472,19 @@ export default function ChatPage() {
             </section>
 
             {/* Floating Input */}
-            <footer className="absolute bottom-0 left-0 w-full px-10 pb-7 pt-4 pointer-events-none" style={{ background: "linear-gradient(to top, #fdf8f8 60%, transparent)" }}>
+            <footer className="absolute bottom-0 left-0 w-full px-10 pb-7 pt-4 pointer-events-none" style={{ background: "linear-gradient(to top, var(--bg, #fdf8f8) 60%, transparent)" }}>
               <div className="max-w-[720px] mx-auto pointer-events-auto">
-                <form onSubmit={handleSubmit} className="flex items-center gap-3 rounded-2xl p-3" style={{ background: "rgba(255,255,255,0.9)", backdropFilter: "blur(16px)", boxShadow: "0 4px 24px rgba(0,0,0,0.04)", border: "1px solid rgba(0,0,0,0.05)" }}>
+                <form onSubmit={handleSubmit} className="flex items-center gap-3 rounded-2xl p-3" style={{ background: isDark ? "rgba(20,20,30,0.9)" : "rgba(255,255,255,0.9)", backdropFilter: "blur(16px)", boxShadow: "0 4px 24px rgba(0,0,0,0.04)", border: isDark ? "1px solid rgba(255,255,255,0.06)" : "1px solid rgba(0,0,0,0.05)" }}>
                   <input
                     value={input}
                     onChange={e => setInput(e.target.value)}
                     onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(e); } }}
                     className="flex-1 bg-transparent text-[14px] placeholder:text-[#aaa] outline-none py-3 px-3"
-                    style={{ color: "#1c1b1b" }}
+                    style={{ color: isDark ? "#e5e5e5" : "#1c1b1b" }}
                     placeholder="Type your instruction..."
                     disabled={status !== "ready"}
                   />
-                  <button type="submit" disabled={status !== "ready" || !input.trim()} className="w-10 h-10 rounded-full text-white flex items-center justify-center disabled:opacity-20 hover:scale-105 active:scale-95 transition-transform" style={{ background: "#1c1b1b", boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}>↑</button>
+                  <button type="submit" disabled={status !== "ready" || !input.trim()} className="w-10 h-10 rounded-full text-white flex items-center justify-center disabled:opacity-20 hover:scale-105 active:scale-95 transition-transform" style={{ background: "var(--accent, #1c1b1b)", boxShadow: "0 2px 8px rgba(0,0,0,0.12)" }}>↑</button>
                 </form>
               </div>
             </footer>
@@ -475,7 +494,9 @@ export default function ChatPage() {
 
       <style jsx global>{`
         @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
-        body { background: #fdf8f8; -webkit-font-smoothing: antialiased; }
+        :root { --accent: #1c1b1b; --bg: #fdf8f8; }
+        * { transition: background-color 0.5s ease, border-color 0.4s ease, color 0.3s ease, box-shadow 0.4s ease; }
+        body { background: var(--bg, #fdf8f8); -webkit-font-smoothing: antialiased; }
       `}</style>
     </div>
   );
