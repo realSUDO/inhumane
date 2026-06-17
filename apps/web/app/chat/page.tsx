@@ -328,6 +328,7 @@ export default function ChatPage() {
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [showCalendarModal, setShowCalendarModal] = useState(false);
   const [showInbox, setShowInbox] = useState(false);
+  const [expandedInbox, setExpandedInbox] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -397,6 +398,9 @@ export default function ChatPage() {
       </aside>
 
       <main className="md:ml-[270px] flex-1 h-screen flex flex-col relative overflow-hidden">
+        {/* Expanded inbox overlay */}
+        {showInbox && expandedInbox && <EmailInbox isDark={isDark} onClose={() => { setShowInbox(false); setExpandedInbox(false); }} expanded={true} onExpand={() => setExpandedInbox(false)} />}
+
         {!showChat ? (
           <div className="flex-1 flex flex-col items-center justify-center px-8 pb-16">
             <div className="w-full max-w-[580px]" style={{ animation: "fadeIn 0.5s ease-out" }}>
@@ -479,12 +483,12 @@ export default function ChatPage() {
                 )}
                 {showEmailModal && <EmailCompose isDark={isDark} onClose={() => setShowEmailModal(false)} />}
                 {showCalendarModal && <CalendarEvent isDark={isDark} onClose={() => setShowCalendarModal(false)} />}
-                {showInbox && <EmailInbox isDark={isDark} onClose={() => setShowInbox(false)} />}
+                {showInbox && <EmailInbox isDark={isDark} onClose={() => { setShowInbox(false); setExpandedInbox(false); }} expanded={expandedInbox} onExpand={() => setExpandedInbox(!expandedInbox)} />}
                 <div ref={messagesEndRef} />
               </div>
             </section>
 
-            <footer className="absolute bottom-0 left-0 w-full px-8 pb-6 pt-4 pointer-events-none" style={{ background: `linear-gradient(to top, var(--bg) 50%, transparent)` }}>
+            <footer className="absolute bottom-0 left-0 w-full px-8 pb-6 pt-4 pointer-events-none z-40" style={{ background: `linear-gradient(to top, var(--bg) 50%, transparent)` }}>
               <div className="max-w-[680px] mx-auto pointer-events-auto">
                 <form onSubmit={handleSubmit} className="flex items-center gap-2.5 rounded-2xl px-4 py-2" style={{ background: tc("rgba(255,255,255,0.85)", "rgba(20,22,30,0.85)"), backdropFilter: "blur(16px)", border: `1px solid ${tc("rgba(0,0,0,0.06)", "rgba(255,255,255,0.06)")}`, boxShadow: tc("0 4px 20px rgba(0,0,0,0.04)", "0 4px 20px rgba(0,0,0,0.4)") }}>
                   <input

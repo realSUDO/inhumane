@@ -52,7 +52,7 @@ export function EmailCompose({ isDark, onClose }: { isDark: boolean; onClose: ()
       <div className="rounded-2xl overflow-hidden" style={{ background: tc("#fff", "#1e2028"), boxShadow: tc("0 4px 24px rgba(0,0,0,0.08)", "0 4px 24px rgba(0,0,0,0.4)"), border: `1px solid ${tc("rgba(0,0,0,0.08)", "rgba(255,255,255,0.08)")}` }}>
         <div className="flex items-center justify-between px-4 py-2.5" style={{ background: tc("#f8f9fa", "#282a34"), borderBottom: `1px solid ${tc("rgba(0,0,0,0.06)", "rgba(255,255,255,0.05)")}` }}>
           <div className="flex items-center gap-2">
-            <img src="/gmail.svg" alt="Gmail" className="w-4 h-4" />
+            <img src="/gmail.png" alt="Gmail" className="w-4 h-4" />
             <span className="text-[12px] font-medium" style={{ color: tc("#444", "#ccc") }}>New Message</span>
           </div>
           <button onClick={onClose} className="w-6 h-6 flex items-center justify-center rounded-full hover:opacity-60 transition-opacity text-[14px]" style={{ color: tc("#666", "#999") }}>×</button>

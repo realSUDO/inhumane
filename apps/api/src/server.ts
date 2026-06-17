@@ -14,6 +14,7 @@ import { chatRouter } from "./routes/chat";
 import { corsairRouter } from "./routes/corsair";
 import { threadsRouter } from "./routes/threads";
 import { emailRouter } from "./routes/email";
+import { emailsRouter } from "./routes/emails";
 import { createBaseMcpServer, createMcpRouter } from "@corsair-dev/mcp";
 import { corsair } from "./corsair";
 
@@ -54,6 +55,9 @@ app.use("/api/chat", chatRouter);
 
 // Email send (user-confirmed)
 app.use("/api/send-email", emailRouter);
+
+// Email inbox (fetch real emails)
+app.use("/api/emails", emailsRouter);
 
 // Threads/messages persistence
 app.use("/api/threads", threadsRouter);
