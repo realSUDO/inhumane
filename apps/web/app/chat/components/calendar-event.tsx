@@ -40,7 +40,7 @@ function EmailTagInput({ isDark, initial }: { isDark: boolean; initial?: string[
   );
 }
 
-export function CalendarEvent({ isDark, onClose, onExpand, prefill, onSuccess }: { isDark: boolean; onClose: () => void; onExpand?: () => void; prefill?: { summary?: string; start?: string; end?: string; description?: string; guests?: string[] }; onSuccess?: () => void }) {
+export function CalendarEvent({ isDark, onClose, onExpand, prefill, onSuccess, completed }: { isDark: boolean; onClose: () => void; onExpand?: () => void; prefill?: { summary?: string; start?: string; end?: string; description?: string; guests?: string[] }; onSuccess?: () => void; completed?: boolean }) {
   const tc = (l: string, d: string) => isDark ? d : l;
   const [title, setTitle] = useState(prefill?.summary || "");
   const [date, setDate] = useState(prefill?.start ? prefill.start.split("T")[0] : "");
@@ -48,7 +48,7 @@ export function CalendarEvent({ isDark, onClose, onExpand, prefill, onSuccess }:
   const [endTime, setEndTime] = useState(prefill?.end ? prefill.end.split("T")[1]?.slice(0, 5) || "" : "");
   const [desc, setDesc] = useState(prefill?.description || "");
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [saved, setSaved] = useState(completed || false);
 
   const handleSave = async () => {
     if (!title) return;

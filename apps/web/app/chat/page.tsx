@@ -65,14 +65,14 @@ function ThreadMenu({ thread, onAction, isRenaming, setRenaming }: { thread: Thr
 }
 
 
-function EmailActionCard({ data, onSuccess }: { data: { to?: string; subject?: string; body?: string }; onSuccess?: () => void }) {
+function EmailActionCard({ data, onSuccess, completed }: { data: { to?: string; subject?: string; body?: string }; onSuccess?: () => void; completed?: boolean }) {
   const dark = typeof document !== "undefined" && document.documentElement.classList.contains("dark");
-  return <EmailCompose isDark={dark} onClose={() => { }} prefill={data} onSuccess={onSuccess} />;
+  return <EmailCompose isDark={dark} onClose={() => { }} prefill={data} onSuccess={onSuccess} completed={completed} />;
 }
 
-function CalendarActionCard({ data, onSuccess }: { data: { summary?: string; start?: string; end?: string; description?: string; guests?: string[] }; onSuccess?: () => void }) {
+function CalendarActionCard({ data, onSuccess, completed }: { data: { summary?: string; start?: string; end?: string; description?: string; guests?: string[] }; onSuccess?: () => void; completed?: boolean }) {
   const dark = typeof document !== "undefined" && document.documentElement.classList.contains("dark");
-  return <CalendarEvent isDark={dark} onClose={() => { }} prefill={data} onSuccess={onSuccess} />;
+  return <CalendarEvent isDark={dark} onClose={() => { }} prefill={data} onSuccess={onSuccess} completed={completed} />;
 }
 
 function renderMessageParts(text: string) {
@@ -506,12 +506,18 @@ export default function ChatPage() {
           <>
             <section className="flex-1 overflow-y-auto px-8 pt-8 pb-40" style={{ scrollbarWidth: "none" }}>
               <div className="max-w-[680px] mx-auto flex flex-col gap-7">
-                {messages.map(message => {
+                {messages.map((message, msgIdx) => {
                   // Hide system continuation messages
                   if (message.role === "user") {
                     const txt = (message.parts || []).find((p: any) => p.type === "text") as any;
                     if (txt?.text?.startsWith("[System]")) return null;
                   }
+                  // Check if action in this message was already completed (next user msg is [System])
+                  const actionCompleted = messages.slice(msgIdx + 1).some(m => {
+                    if (m.role !== "user") return false;
+                    const t = (m.parts || []).find((p: any) => p.type === "text") as any;
+                    return t?.text?.startsWith("[System]");
+                  });
                   return (
                   <div key={message.id} style={{ animation: "fadeIn 0.2s ease-out" }}>
                     {message.role === "user" ? (
@@ -541,10 +547,10 @@ export default function ChatPage() {
                                   );
                                 }
                                 if (b.type === "email-draft" || b.type === "email-action") {
-                                  return <div key={`${i}-${bi}`} className="w-full max-w-full"><EmailActionCard data={b.data} onSuccess={() => sendMessage({ text: '[System] Action completed successfully. Proceed to the next task.' })} /></div>;
+                                  return <div key={`${i}-${bi}`} className="w-full max-w-full"><EmailActionCard data={b.data} completed={actionCompleted} onSuccess={() => sendMessage({ text: '[System] Action completed successfully. Proceed to the next task.' })} /></div>;
                                 }
                                 if (b.type === "calendar-event" || b.type === "calendar-action") {
-                                  return <div key={`${i}-${bi}`} className="w-full max-w-full"><CalendarActionCard data={b.data} onSuccess={() => sendMessage({ text: '[System] Action completed successfully. Proceed to the next task.' })} /></div>;
+                                  return <div key={`${i}-${bi}`} className="w-full max-w-full"><CalendarActionCard data={b.data} completed={actionCompleted} onSuccess={() => sendMessage({ text: '[System] Action completed successfully. Proceed to the next task.' })} /></div>;
                                 }
                                 return null;
                               });

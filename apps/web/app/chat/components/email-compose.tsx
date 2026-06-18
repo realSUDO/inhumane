@@ -44,12 +44,12 @@ function EmailTagInput({ isDark, initial }: { isDark: boolean; initial?: string[
   );
 }
 
-export function EmailCompose({ isDark, onClose, prefill, onSuccess }: { isDark: boolean; onClose: () => void; prefill?: { to?: string; subject?: string; body?: string }; onSuccess?: () => void }) {
+export function EmailCompose({ isDark, onClose, prefill, onSuccess, completed }: { isDark: boolean; onClose: () => void; prefill?: { to?: string; subject?: string; body?: string }; onSuccess?: () => void; completed?: boolean }) {
   const tc = (l: string, d: string) => isDark ? d : l;
   const [subject, setSubject] = useState(prefill?.subject || "");
   const [body, setBody] = useState(prefill?.body || "");
   const [sending, setSending] = useState(false);
-  const [sent, setSent] = useState(false);
+  const [sent, setSent] = useState(completed || false);
   const toRef = { current: prefill?.to ? [prefill.to] : [] };
 
   const handleSend = async () => {
