@@ -66,8 +66,19 @@ calendarRouter.post("/events", async (req, res) => {
     const parsed = createEventSchema.safeParse(req.body);
     if (!parsed.success) { res.status(400).json({ error: "Invalid body", details: parsed.error.issues }); return; }
 
+    const usage = await cache.getUsage(session.user.id, "actions");
+    if (usage >= 20) {
+      res.status(403).json({ error: "Thanks for Testing the beta! You've finished your free trial, see you in full launch." });
+      return;
+    }
+    await cache.incrementUsage(session.user.id, "actions");
+
     const tenant = corsair.withTenant(session.user.id);
-    const event = await tenant.googlecalendar.api.events.create({ event: parsed.data });
+    const eventData = { ...parsed.data };
+    // Ensure timeZone is set for Google Calendar API
+    if (eventData.start?.dateTime && !eventData.start.timeZone) eventData.start.timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (eventData.end?.dateTime && !eventData.end.timeZone) eventData.end.timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const event = await tenant.googlecalendar.api.events.create({ event: eventData });
     await cache.delPattern(`cal:${session.user.id}:*`);
     res.json(event);
   } catch (err: any) {

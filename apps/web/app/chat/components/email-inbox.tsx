@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { InboxIcon, StarIcon, SentIcon, Delete02Icon, Edit02Icon, Alert01Icon, Menu01Icon, Mail01Icon, Archive01Icon } from "hugeicons-react";
+import { EmailCompose } from "./email-compose";
 
 type Email = { id: string; threadId: string; from: string; to: string; subject: string; snippet: string; date: string; body: string; unread: boolean; labelIds: string[] };
 
@@ -29,6 +30,7 @@ export function EmailInbox({ isDark, onClose, expanded, onExpand }: { isDark: bo
   const [nextPage, setNextPage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [openEmail, setOpenEmail] = useState<Email | null>(null);
+  const [isReplying, setIsReplying] = useState(false);
   const [activeLabel, setActiveLabel] = useState("INBOX");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -88,35 +90,71 @@ export function EmailInbox({ isDark, onClose, expanded, onExpand }: { isDark: bo
     fetch(url, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, ...(body ? { body: JSON.stringify(body) } : {}) });
   };
 
-  // Email detail view
-  if (openEmail) {
-    return (
-      <div className={expanded ? "absolute inset-0 z-[60] flex flex-col" : "w-full max-w-[620px]"} style={{ background: tc("#fff", "#161b22"), animation: "fadeIn 0.15s ease-out", ...(expanded ? {} : { borderRadius: 16, border: `1px solid ${tc("rgba(0,0,0,0.08)", "rgba(255,255,255,0.08)")}`, boxShadow: tc("0 4px 24px rgba(0,0,0,0.08)", "0 4px 24px rgba(0,0,0,0.4)"), overflow: "hidden" }) }}>
-        {/* Header */}
-        <div className="flex items-center gap-2 px-4 py-2.5 shrink-0" style={{ borderBottom: `1px solid ${tc("#eee", "rgba(255,255,255,0.06)")}` }}>
-          <button onClick={() => setOpenEmail(null)} className="p-1.5 rounded-full hover:bg-black/5" style={{ color: tc("#444", "#aaa") }}><BackIcon /></button>
-          <div className="flex-1" />
-          <button onClick={() => doAction(openEmail.id, "archive")} className="p-2 rounded-full hover:bg-black/5" title="Archive" style={{ color: tc("#555", "#aaa") }}><Archive01Icon size={16} /></button>
-          <button onClick={() => doAction(openEmail.id, "trash")} className="p-2 rounded-full hover:bg-black/5" title="Delete" style={{ color: tc("#555", "#aaa") }}><Delete02Icon size={16} /></button>
-          <button onClick={() => doAction(openEmail.id, openEmail.labelIds.includes("STARRED") ? "unstar" : "star")} className="p-2 rounded-full hover:bg-black/5" title="Star" style={{ color: openEmail.labelIds.includes("STARRED") ? "#f4b400" : tc("#555", "#aaa") }}><StarIcon size={16} /></button>
-        </div>
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto px-6 py-5" style={{ scrollbarWidth: "thin" }}>
-          <h2 className="text-[18px] font-normal mb-4" style={{ color: tc("#222", "#eee") }}>{openEmail.subject || "(no subject)"}</h2>
-          <div className="flex items-start gap-3 mb-5">
-            <div className="w-10 h-10 rounded-full flex items-center justify-center text-[14px] font-semibold shrink-0" style={{ background: tc("#e8eaed", "rgba(255,255,255,0.06)"), color: tc("#555", "#bbb") }}>{extractName(openEmail.from)[0]}</div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-[14px] font-medium" style={{ color: tc("#222", "#eee") }}>{extractName(openEmail.from)}</span>
-                <span className="text-[12px]" style={{ color: tc("#777", "#888") }}>{formatDate(openEmail.date)}</span>
-              </div>
-              <p className="text-[12px] mt-0.5" style={{ color: tc("#666", "#888") }}>to {openEmail.to ? extractName(openEmail.to) : "me"}</p>
+  // Email detail view helper
+  const renderDetailView = () => (
+    <div className={expanded ? "flex-1 flex flex-col h-full bg-white dark:bg-[#161b22]" : "w-full max-w-[620px] rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.12)] bg-white dark:bg-[#161b22] overflow-hidden"} style={{ ...(expanded ? {} : { border: `1px solid ${tc("rgba(0,0,0,0.08)", "rgba(255,255,255,0.08)")}` }), animation: "fadeIn 0.15s ease-out" }}>
+      {/* Header Toolbar */}
+      <div className={`flex items-center gap-2 px-4 py-2 shrink-0 ${expanded ? 'border-b' : ''}`} style={{ borderColor: tc("rgba(0,0,0,0.06)", "rgba(255,255,255,0.06)") }}>
+        <button onClick={() => { setOpenEmail(null); setIsReplying(false); }} className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors" style={{ color: tc("#555", "#aaa") }}><BackIcon /></button>
+        <div className="flex-1" />
+        <button onClick={() => doAction(openEmail!.id, "archive")} className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors" title="Archive" style={{ color: tc("#555", "#aaa") }}><Archive01Icon size={18} /></button>
+        <button onClick={() => doAction(openEmail!.id, "trash")} className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors" title="Delete" style={{ color: tc("#555", "#aaa") }}><Delete02Icon size={18} /></button>
+        <button onClick={() => doAction(openEmail!.id, openEmail!.labelIds.includes("STARRED") ? "unstar" : "star")} className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors" title="Star" style={{ color: openEmail!.labelIds.includes("STARRED") ? "#f4b400" : tc("#555", "#aaa") }}><StarIcon size={18} /></button>
+      </div>
+      
+      {/* Scrollable Body */}
+      <div className="flex-1 overflow-y-auto px-6 py-6 md:px-12 md:py-8" style={{ scrollbarWidth: "thin" }}>
+        {/* Subject */}
+        <h1 className="text-[22px] md:text-[24px] font-normal mb-6 leading-tight flex items-center flex-wrap gap-3" style={{ color: tc("#111", "#eee") }}>
+          {openEmail!.subject || "(no subject)"}
+          {openEmail!.labelIds.includes("INBOX") && <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-md" style={{ background: tc("rgba(0,0,0,0.05)", "rgba(255,255,255,0.1)"), color: tc("#555", "#ccc") }}>Inbox</span>}
+        </h1>
+        
+        {/* Sender Info */}
+        <div className="flex items-start gap-4 mb-8">
+          <div className="w-10 h-10 rounded-full flex items-center justify-center text-[15px] text-white font-medium shrink-0 shadow-sm" style={{ background: tc("#4285f4", "#3b82f6") }}>{extractName(openEmail!.from)[0]}</div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-0.5">
+              <span className="text-[14px] font-bold" style={{ color: tc("#222", "#ddd") }}>{extractName(openEmail!.from)}</span>
+              <span className="text-[12px] truncate hidden sm:inline" style={{ color: tc("#777", "#888") }}>&lt;{openEmail!.from.match(/<([^>]+)>/)?.[1] || openEmail!.from}&gt;</span>
+            </div>
+            <div className="text-[12px] flex items-center gap-1" style={{ color: tc("#666", "#888") }}>
+              to {openEmail!.to ? extractName(openEmail!.to) : "me"} 
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M6 9l6 6 6-6"/></svg>
             </div>
           </div>
-          <div className="text-[14px] leading-[1.7] whitespace-pre-wrap" style={{ color: tc("#333", "#ddd") }}>{openEmail.body || openEmail.snippet}</div>
+          <div className="text-[12px] mt-1 whitespace-nowrap" style={{ color: tc("#666", "#888") }}>{formatDate(openEmail!.date)}</div>
+        </div>
+        
+        {/* Email Content */}
+        <div className="text-[14px] leading-relaxed max-w-[800px]" style={{ color: tc("#222", "#ddd") }}>
+          {openEmail!.body?.includes("<") ? (
+            <div dangerouslySetInnerHTML={{ __html: openEmail!.body }} className="email-body [&_a]:underline [&_a]:text-[color:var(--accent,#1a73e8)] [&_img]:max-w-full [&_img]:rounded-lg [&_img]:my-4" />
+          ) : (
+            <p className="whitespace-pre-wrap">{(openEmail!.body || openEmail!.snippet).replace(/(https?:\/\/[^\s]+)/g, '|||LINK:$1|||').split('|||').map((part, i) => part.startsWith('LINK:') ? <a key={i} href={part.slice(5)} target="_blank" rel="noopener noreferrer" className="underline break-all" style={{ color: "var(--accent, #1a73e8)" }}>{part.slice(5)}</a> : part)}</p>
+          )}
+        </div>
+        
+        {/* Reply Action */}
+        <div className="mt-10 pt-6">
+          {isReplying ? (
+            <div className="rounded-2xl border bg-white dark:bg-[#1a1c23] shadow-sm mb-4" style={{ borderColor: tc("rgba(0,0,0,0.1)", "rgba(255,255,255,0.1)") }}>
+               <EmailCompose isDark={isDark} onClose={() => setIsReplying(false)} prefill={{ to: openEmail!.from.match(/<([^>]+)>/)?.[1] || openEmail!.from, subject: openEmail!.subject.startsWith('Re:') ? openEmail!.subject : `Re: ${openEmail!.subject}` }} />
+            </div>
+          ) : (
+            <button onClick={() => setIsReplying(true)} className="px-6 py-2.5 rounded-full border text-[14px] font-medium transition-colors flex items-center gap-2" style={{ borderColor: tc("rgba(0,0,0,0.1)", "rgba(255,255,255,0.1)"), color: tc("#444", "#ccc") }} onMouseEnter={e => e.currentTarget.style.background = tc("rgba(0,0,0,0.03)", "rgba(255,255,255,0.03)")} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M3 10h10a8 8 0 0 1 8 8v2M3 10l6 6M3 10l6-6"/></svg>
+              Reply
+            </button>
+          )}
         </div>
       </div>
-    );
+    </div>
+  );
+
+  // Compact inline card when detail view is open
+  if (openEmail && !expanded) {
+    return renderDetailView();
   }
 
   // Expanded full view
@@ -146,29 +184,31 @@ export function EmailInbox({ isDark, onClose, expanded, onExpand }: { isDark: bo
             <button onClick={onClose} className="p-2 rounded-full text-[16px]" style={{ color: tc("#555", "#aaa") }}>×</button>
           </div>
 
-          {/* Email rows */}
-          <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
-            {emails.length === 0 && !loading && <div className="py-12 text-center text-[13px]" style={{ color: tc("#999", "#666") }}>No emails</div>}
-            {emails.map(mail => (
-              <div key={mail.id} onClick={() => setOpenEmail(mail)} className="flex items-center px-1 cursor-pointer group" style={{ borderBottom: `1px solid ${tc("rgba(0,0,0,0.04)", "rgba(255,255,255,0.03)")}`, background: mail.unread ? tc("#fff", "rgba(255,255,255,0.02)") : tc("#f6f8fc", "#0d1117") }} onMouseEnter={e => (e.currentTarget.style.background = tc("#f2f6fc", "rgba(255,255,255,0.04)"))} onMouseLeave={e => (e.currentTarget.style.background = mail.unread ? tc("#fff", "rgba(255,255,255,0.02)") : tc("#f6f8fc", "#0d1117"))}>
-                <div className="w-9 flex items-center justify-center shrink-0"><input type="checkbox" className="w-3.5 h-3.5 opacity-40" onClick={e => e.stopPropagation()} /></div>
-                <div className="w-7 flex items-center justify-center shrink-0 cursor-pointer" onClick={e => { e.stopPropagation(); doAction(mail.id, mail.labelIds.includes("STARRED") ? "unstar" : "star"); }}><StarIcon size={14} style={{ color: mail.labelIds.includes("STARRED") ? "#f4b400" : tc("#ccc", "#555") }} /></div>
-                <div className="w-[160px] shrink-0 px-2 py-2"><span className={`text-[13px] truncate block ${mail.unread ? "font-bold" : ""}`} style={{ color: tc("#222", "#eee") }}>{extractName(mail.from)}</span></div>
-                <div className="flex-1 min-w-0 flex items-center gap-1 px-2 py-2">
-                  <span className={`text-[13px] shrink-0 max-w-[40%] truncate ${mail.unread ? "font-bold" : ""}`} style={{ color: tc("#222", "#ddd") }}>{mail.subject || "(no subject)"}</span>
-                  <span className="text-[13px] truncate" style={{ color: tc("#666", "#555") }}>— {mail.snippet}</span>
+          {/* Main Content (Email rows OR Email detail) */}
+          {openEmail ? renderDetailView() : (
+            <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
+              {emails.length === 0 && !loading && <div className="py-12 text-center text-[13px]" style={{ color: tc("#999", "#666") }}>No emails</div>}
+              {emails.map(mail => (
+                <div key={mail.id} onClick={() => { setOpenEmail(mail); setIsReplying(false); }} className="flex items-center px-1 cursor-pointer group" style={{ borderBottom: `1px solid ${tc("rgba(0,0,0,0.04)", "rgba(255,255,255,0.03)")}`, background: mail.unread ? tc("#fff", "rgba(255,255,255,0.02)") : tc("#f6f8fc", "#0d1117") }} onMouseEnter={e => (e.currentTarget.style.background = tc("#f2f6fc", "rgba(255,255,255,0.04)"))} onMouseLeave={e => (e.currentTarget.style.background = mail.unread ? tc("#fff", "rgba(255,255,255,0.02)") : tc("#f6f8fc", "#0d1117"))}>
+                  <div className="w-9 flex items-center justify-center shrink-0"><input type="checkbox" className="w-3.5 h-3.5 opacity-40" onClick={e => e.stopPropagation()} /></div>
+                  <div className="w-7 flex items-center justify-center shrink-0 cursor-pointer" onClick={e => { e.stopPropagation(); doAction(mail.id, mail.labelIds.includes("STARRED") ? "unstar" : "star"); }}><StarIcon size={14} style={{ color: mail.labelIds.includes("STARRED") ? "#f4b400" : tc("#ccc", "#555") }} /></div>
+                  <div className="w-[160px] shrink-0 px-2 py-2"><span className={`text-[13px] truncate block ${mail.unread ? "font-bold" : ""}`} style={{ color: tc("#222", "#eee") }}>{extractName(mail.from)}</span></div>
+                  <div className="flex-1 min-w-0 flex items-center gap-1 px-2 py-2">
+                    <span className={`text-[13px] shrink-0 max-w-[40%] truncate ${mail.unread ? "font-bold" : ""}`} style={{ color: tc("#222", "#ddd") }}>{mail.subject || "(no subject)"}</span>
+                    <span className="text-[13px] truncate" style={{ color: tc("#666", "#555") }}>— {mail.snippet}</span>
+                  </div>
+                  {/* Hover actions */}
+                  <div className="hidden group-hover:flex items-center gap-0.5 pr-2">
+                    <button onClick={e => { e.stopPropagation(); doAction(mail.id, "archive"); }} className="p-1.5 rounded-full" style={{ color: tc("#666", "#999") }} title="Archive"><Archive01Icon size={14} /></button>
+                    <button onClick={e => { e.stopPropagation(); doAction(mail.id, "trash"); }} className="p-1.5 rounded-full" style={{ color: tc("#666", "#999") }} title="Delete"><Delete02Icon size={14} /></button>
+                    <button onClick={e => { e.stopPropagation(); doAction(mail.id, mail.unread ? "read" : "unread"); }} className="p-1.5 rounded-full" style={{ color: tc("#666", "#999") }} title={mail.unread ? "Mark read" : "Mark unread"}><Mail01Icon size={14} /></button>
+                  </div>
+                  <div className="w-[65px] shrink-0 px-2 py-2 text-right group-hover:hidden"><span className={`text-[11px] ${mail.unread ? "font-bold" : ""}`} style={{ color: mail.unread ? tc("#222", "#eee") : tc("#777", "#888") }}>{formatDate(mail.date)}</span></div>
                 </div>
-                {/* Hover actions */}
-                <div className="hidden group-hover:flex items-center gap-0.5 pr-2">
-                  <button onClick={e => { e.stopPropagation(); doAction(mail.id, "archive"); }} className="p-1.5 rounded-full" style={{ color: tc("#666", "#999") }} title="Archive"><Archive01Icon size={14} /></button>
-                  <button onClick={e => { e.stopPropagation(); doAction(mail.id, "trash"); }} className="p-1.5 rounded-full" style={{ color: tc("#666", "#999") }} title="Delete"><Delete02Icon size={14} /></button>
-                  <button onClick={e => { e.stopPropagation(); doAction(mail.id, mail.unread ? "read" : "unread"); }} className="p-1.5 rounded-full" style={{ color: tc("#666", "#999") }} title={mail.unread ? "Mark read" : "Mark unread"}><Mail01Icon size={14} /></button>
-                </div>
-                <div className="w-[65px] shrink-0 px-2 py-2 text-right group-hover:hidden"><span className={`text-[11px] ${mail.unread ? "font-bold" : ""}`} style={{ color: mail.unread ? tc("#222", "#eee") : tc("#777", "#888") }}>{formatDate(mail.date)}</span></div>
-              </div>
-            ))}
-            {loading && <div className="py-4 text-center text-[12px]" style={{ color: tc("#999", "#666") }}>Loading...</div>}
-          </div>
+              ))}
+              {loading && <div className="py-4 text-center text-[12px]" style={{ color: tc("#999", "#666") }}>Loading...</div>}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -191,7 +231,7 @@ export function EmailInbox({ isDark, onClose, expanded, onExpand }: { isDark: bo
         </div>
         <div>
           {(emails.length ? emails.slice(0, 5) : []).map(mail => (
-            <div key={mail.id} onClick={() => setOpenEmail(mail)} className="flex items-start gap-3 px-5 py-3 cursor-pointer" style={{ borderBottom: `1px solid ${tc("rgba(0,0,0,0.04)", "rgba(255,255,255,0.04)")}`, background: mail.unread ? tc("rgba(66,133,244,0.03)", "rgba(107,138,255,0.04)") : "transparent" }}>
+            <div key={mail.id} onClick={() => { setOpenEmail(mail); setIsReplying(false); }} className="flex items-start gap-3 px-5 py-3 cursor-pointer" style={{ borderBottom: `1px solid ${tc("rgba(0,0,0,0.04)", "rgba(255,255,255,0.04)")}`, background: mail.unread ? tc("rgba(66,133,244,0.03)", "rgba(107,138,255,0.04)") : "transparent" }}>
               <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-[11px] font-semibold" style={{ background: tc("rgba(0,0,0,0.06)", "rgba(255,255,255,0.08)"), color: tc("#555", "#aaa") }}>{extractName(mail.from)[0] || "·"}</div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2 mb-0.5">

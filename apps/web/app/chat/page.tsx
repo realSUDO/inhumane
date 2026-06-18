@@ -7,7 +7,8 @@ import { EmailCompose } from "./components/email-compose";
 import { CalendarEvent } from "./components/calendar-event";
 import { CalendarFull } from "./components/calendar-full";
 import { EmailInbox } from "./components/email-inbox";
-import { Mail01Icon, Calendar03Icon, PencilEdit01Icon, Logout03Icon, PlusSignIcon, Home01Icon, Clock01Icon, Settings01Icon, SentIcon, MoreHorizontalIcon, Delete02Icon, PinIcon, Archive01Icon, Edit02Icon } from "hugeicons-react";
+import { Mail01Icon, Calendar03Icon, PencilEdit01Icon, Logout03Icon, PlusSignIcon, Home01Icon, Clock01Icon, Settings01Icon, SentIcon, MoreHorizontalIcon, Delete02Icon, PinIcon, Archive01Icon, Edit02Icon, Copy01Icon, RefreshIcon } from "hugeicons-react";
+import Markdown from "react-markdown";
 
 type Thread = { id: string; title: string; pinned: boolean; archived: boolean; created_at: string };
 type ConnectStatus = { gmail: boolean; googlecalendar: boolean };
@@ -65,14 +66,52 @@ function ThreadMenu({ thread, onAction, isRenaming, setRenaming }: { thread: Thr
 }
 
 
-function EmailActionCard({ data }: { data: { to?: string; subject?: string; body?: string } }) {
-  const dark = typeof document !== "undefined" && document.documentElement.classList.contains("dark");
-  return <EmailCompose isDark={dark} onClose={() => { }} prefill={data} />;
+function UserBubble({ message, msgIdx, messages, setMessages, sendMessage, tc }: { message: any; msgIdx: number; messages: any[]; setMessages: any; sendMessage: any; tc: (l: string, d: string) => string }) {
+  const [editing, setEditing] = useState(false);
+  const txt = (message.parts || []).find((p: any) => p.type === "text") as any;
+  const [editText, setEditText] = useState(txt?.text || "");
+
+  const submitEdit = () => {
+    if (!editText.trim()) return;
+    setMessages(messages.slice(0, msgIdx));
+    setEditing(false);
+    setTimeout(() => sendMessage({ text: editText }), 50);
+  };
+
+  if (editing) return (
+    <div className="max-w-[75%] w-full">
+      <textarea autoFocus value={editText} onChange={e => setEditText(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submitEdit(); } }} className="w-full rounded-[16px] px-4 py-2.5 text-[15px] leading-relaxed outline-none resize-none" style={{ background: tc("rgba(0,0,0,0.05)", "rgba(255,255,255,0.08)"), color: tc("#111", "#e5e5e5"), border: `2px solid var(--accent, #4A6FA5)` }} rows={2} />
+      <div className="flex justify-end gap-2 mt-1.5">
+        <button onClick={() => setEditing(false)} className="text-[11px] px-3 py-1 rounded-full" style={{ color: tc("#666", "#aaa") }}>Cancel</button>
+        <button onClick={submitEdit} className="text-[11px] px-3 py-1 rounded-full text-white" style={{ background: "var(--accent)" }}>Save & Send</button>
+      </div>
+    </div>
+  );
+
+  return (
+    <>
+      <div className="max-w-[75%] rounded-[20px] rounded-br-sm px-4 py-2.5 shadow-sm" style={{ background: tc("rgba(0,0,0,0.05)", "rgba(255,255,255,0.08)"), color: tc("#111", "#e5e5e5") }}>
+        {(message.parts || [{ type: "text" as const, text: (message as any).content }]).map((part: any, i: number) => {
+          if (part.type === "text") return <p key={i} className="text-[15px] leading-relaxed tracking-tight whitespace-pre-wrap">{part.text}</p>;
+          return null;
+        })}
+      </div>
+      <div className="absolute -bottom-6 right-2 hidden group-hover/msg:flex items-center gap-1 opacity-50">
+        <button onClick={() => setEditing(true)} className="p-1 rounded hover:opacity-100 transition-opacity" style={{ color: tc("#555", "#aaa") }} title="Edit"><PencilEdit01Icon size={14} /></button>
+        <button onClick={() => { if (txt?.text) navigator.clipboard.writeText(txt.text); }} className="p-1 rounded hover:opacity-100 transition-opacity" style={{ color: tc("#555", "#aaa") }} title="Copy"><Copy01Icon size={14} /></button>
+      </div>
+    </>
+  );
 }
 
-function CalendarActionCard({ data }: { data: { summary?: string; start?: string; end?: string; description?: string; guests?: string[] } }) {
+function EmailActionCard({ data, onSuccess, completed }: { data: { to?: string; subject?: string; body?: string }; onSuccess?: () => void; completed?: boolean }) {
   const dark = typeof document !== "undefined" && document.documentElement.classList.contains("dark");
-  return <CalendarEvent isDark={dark} onClose={() => { }} prefill={data} />;
+  return <EmailCompose isDark={dark} onClose={() => { }} prefill={data} onSuccess={onSuccess} completed={completed} />;
+}
+
+function CalendarActionCard({ data, onSuccess, completed }: { data: { summary?: string; start?: string; end?: string; description?: string; guests?: string[] }; onSuccess?: () => void; completed?: boolean }) {
+  const dark = typeof document !== "undefined" && document.documentElement.classList.contains("dark");
+  return <CalendarEvent isDark={dark} onClose={() => { }} prefill={data} onSuccess={onSuccess} completed={completed} />;
 }
 
 function renderMessageParts(text: string) {
@@ -201,6 +240,9 @@ export default function ChatPage() {
   const [threads, setThreads] = useState<Thread[]>([]);
   const [activeThread, setActiveThread] = useState<string | null>(null);
   const [input, setInput] = useState("");
+  const [trustMode, setTrustMode] = useState(false);
+  const trustRef = useRef(false);
+  trustRef.current = trustMode;
   const [connectStatus, setConnectStatus] = useState<ConnectStatus>({ gmail: true, googlecalendar: true }); // assume connected until checked
   const [user, setUser] = useState<User | null>(null);
   const [showChat, setShowChat] = useState(false);
@@ -228,10 +270,10 @@ export default function ChatPage() {
   const transport = useMemo(() => new DefaultChatTransport({
     api: "/api/chat",
     credentials: "include",
-    body: () => ({ threadId: activeThreadRef.current }),
+    body: () => ({ threadId: activeThreadRef.current, trust: trustRef.current }),
   }), []);
 
-  const { messages, sendMessage, status, setMessages } = useChat({ transport });
+  const { messages, sendMessage, status, setMessages, regenerate } = useChat({ transport });
 
   useEffect(() => {
     fetch("/api/threads", { credentials: "include" }).then(r => r.json()).then(setThreads).catch(() => { });
@@ -308,6 +350,9 @@ export default function ChatPage() {
   const openConnectPopup = (plugin: string) => { window.open(`/api/corsair/connect?plugin=${plugin}`, "corsair-connect", "width=500,height=600,popup=yes"); };
 
   const startNewChat = (prefill?: string) => {
+    setShowInbox(false);
+    setShowCalendarModal(false);
+    setShowEmailModal(false);
     const text = prefill || input;
     if (!text.trim() || status !== "ready") return;
 
@@ -335,19 +380,27 @@ export default function ChatPage() {
     e.preventDefault();
     if (!input.trim() || status !== "ready") return;
 
+    // Trust mode toggle
+    if (input.trim() === "/trust") { setTrustMode(!trustMode); setInput(""); return; }
+    // Catch partial /trust typing (autosuggest active)
+    if (input.startsWith("/") && "/trust".startsWith(input.toLowerCase()) && input.length > 1) { setTrustMode(true); setInput(""); return; }
+
     // Dev shortcuts - inject inline cards
     if (input.trim() === "sm") { setShowEmailModal(true); setShowChat(true); setInput(""); return; }
     if (input.trim() === "sc") { setShowCalendarModal(true); setShowChat(true); setInput(""); return; }
     if (input.trim() === "sml") { setShowInbox(true); setShowChat(true); setInput(""); return; }
 
     if (!activeThread) { startNewChat(); return; }
+    setShowInbox(false);
+    setShowCalendarModal(false);
+    setShowEmailModal(false);
     sendMessage({ text: input });
     setInput("");
   };
 
   const tints = isDark
-    ? [{ c: "#7B93FF", bg: "#000000", fg: "#fff" }, { c: "#5DDCCC", bg: "#000000", fg: "#000" }, { c: "#FF7BAA", bg: "#000000", fg: "#fff" }]
-    : [{ c: "#4A6FA5", bg: "#f2f6fc", fg: "#fff" }, { c: "#2D6A4F", bg: "#f0f8f4", fg: "#fff" }, { c: "#8B5CF6", bg: "#f5f2ff", fg: "#fff" }];
+    ? [{ c: "#ffffff", bg: "#000000", fg: "#000" }, { c: "#7B93FF", bg: "#000000", fg: "#fff" }, { c: "#5DDCCC", bg: "#000000", fg: "#000" }, { c: "#FF7BAA", bg: "#000000", fg: "#fff" }]
+    : [{ c: "#111111", bg: "#f2f6fc", fg: "#fff" }, { c: "#4A6FA5", bg: "#f2f6fc", fg: "#fff" }, { c: "#2D6A4F", bg: "#f0f8f4", fg: "#fff" }, { c: "#8B5CF6", bg: "#f5f2ff", fg: "#fff" }];
 
   const tc = (light: string, dark: string) => isDark ? dark : light;
 
@@ -384,9 +437,19 @@ export default function ChatPage() {
           </button>
         </div>
 
+        {/* Quick Apps */}
+        <div className={`flex ${sidebarOpen ? 'flex-row gap-2 px-1' : 'flex-col gap-2 justify-center items-center'} transition-all duration-300 shrink-0`}>
+          <button onClick={() => { setExpandedCalendar(true); setShowCalendarModal(true); setShowInbox(false); setShowEmailModal(false); }} className={`flex flex-col items-center justify-center rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:opacity-90 active:scale-[0.97] transition-all duration-300 relative`} style={{ background: tc("#fff", "rgba(255,255,255,0.05)"), border: `1px solid ${tc("rgba(0,0,0,0.06)", "rgba(255,255,255,0.08)")}`, width: sidebarOpen ? "50%" : 40, height: sidebarOpen ? 52 : 40 }}>
+            <img src="/calendar.png" alt="Calendar" className={`${sidebarOpen ? 'w-6 h-6' : 'w-5 h-5'}`} />
+          </button>
+          <button onClick={() => { setExpandedInbox(true); setShowInbox(true); setShowCalendarModal(false); setShowEmailModal(false); }} className={`flex items-center justify-center rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:opacity-90 active:scale-[0.97] transition-all duration-300`} style={{ background: tc("#fff", "rgba(255,255,255,0.05)"), border: `1px solid ${tc("rgba(0,0,0,0.06)", "rgba(255,255,255,0.08)")}`, width: sidebarOpen ? "50%" : 40, height: sidebarOpen ? 52 : 40 }}>
+            <img src="/gmail.png" alt="Gmail" className={`object-contain ${sidebarOpen ? 'w-6 h-5' : 'w-5 h-4.5'}`} />
+          </button>
+        </div>
+
         {/* New Thread Button */}
         <div className={`shrink-0 flex transition-all duration-300 ${sidebarOpen ? 'px-1' : 'justify-center'}`}>
-          <button onClick={() => { setActiveThread(null); setShowChat(true); setMessages([]); setSearchQuery(""); }} className="flex items-center justify-center rounded-xl font-medium hover:opacity-90 active:scale-[0.97] transition-all duration-300 shadow-sm shrink-0" style={{ background: "var(--accent, #111)", color: "var(--accent-fg, #fff)", width: sidebarOpen ? "100%" : 40, height: 40 }}>
+          <button onClick={() => { setActiveThread(null); setShowChat(false); setMessages([]); setSearchQuery(""); setShowInbox(false); setShowCalendarModal(false); setShowEmailModal(false); }} className="flex items-center justify-center rounded-xl font-medium hover:opacity-90 active:scale-[0.97] transition-all duration-300 shadow-sm shrink-0" style={{ background: "var(--accent, #111)", color: "var(--accent-fg, #fff)", width: sidebarOpen ? "100%" : 40, height: 40 }}>
             <PlusSignIcon size={sidebarOpen ? 16 : 18} className="shrink-0" />
             <span className={`whitespace-nowrap transition-all duration-75 ${sidebarOpen ? 'opacity-100 ml-2 w-auto' : 'opacity-0 w-0 ml-0 overflow-hidden'}`}>New Thread</span>
           </button>
@@ -405,7 +468,7 @@ export default function ChatPage() {
                 <div key={group.label} className="mb-4">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.06em] px-2 mb-1.5" style={{ color: tc("#aaa", "#555") }}>{group.label}</p>
                   {group.threads.map(t => (
-                    <ThreadItem key={t.id} thread={t} active={activeThread === t.id} onSelect={() => setActiveThread(t.id)} onAction={handleThreadAction} isDark={isDark} />
+                    <ThreadItem key={t.id} thread={t} active={activeThread === t.id} onSelect={() => { setActiveThread(t.id); setShowInbox(false); setShowCalendarModal(false); setShowEmailModal(false); }} onAction={handleThreadAction} isDark={isDark} />
                   ))}
                 </div>
               ))}
@@ -494,8 +557,8 @@ export default function ChatPage() {
 
               {/* Chips */}
               <div className="flex flex-wrap gap-2.5 justify-center mt-6">
-                {[{ label: "Read Inbox", icon: Mail01Icon, q: "Show my latest 5 emails" }, { label: "Schedule", icon: Calendar03Icon, q: "What's on my calendar today?" }, { label: "Compose", icon: PencilEdit01Icon, q: "Draft an email" }].map(chip => (
-                  <button key={chip.label} onClick={() => startNewChat(chip.q)} className="flex items-center gap-2 px-4 py-2.5 rounded-full text-[13px] font-medium transition-all hover:scale-[1.02] active:scale-[0.97]" style={{ background: tc("rgba(0,0,0,0.03)", "rgba(255,255,255,0.04)"), border: `1px solid ${tc("rgba(0,0,0,0.05)", "rgba(255,255,255,0.06)")}`, color: tc("#444", "#bbb") }}>
+                {[{ label: "Read Inbox", icon: Mail01Icon, action: () => { setExpandedInbox(false); setShowInbox(true); setShowChat(true); } }, { label: "Schedule", icon: Calendar03Icon, action: () => { setExpandedCalendar(false); setShowCalendarModal(true); setShowChat(true); } }, { label: "Compose", icon: PencilEdit01Icon, action: () => { setShowEmailModal(true); setShowChat(true); } }].map(chip => (
+                  <button key={chip.label} onClick={chip.action} className="flex items-center gap-2 px-4 py-2.5 rounded-full text-[13px] font-medium transition-all hover:scale-[1.02] active:scale-[0.97]" style={{ background: tc("rgba(0,0,0,0.03)", "rgba(255,255,255,0.04)"), border: `1px solid ${tc("rgba(0,0,0,0.05)", "rgba(255,255,255,0.06)")}`, color: tc("#444", "#bbb") }}>
                     <chip.icon size={14} className="opacity-60" />{chip.label}
                   </button>
                 ))}
@@ -506,19 +569,26 @@ export default function ChatPage() {
           <>
             <section className="flex-1 overflow-y-auto px-8 pt-8 pb-40" style={{ scrollbarWidth: "none" }}>
               <div className="max-w-[680px] mx-auto flex flex-col gap-7">
-                {messages.map(message => (
+                {messages.map((message, msgIdx) => {
+                  // Hide system continuation messages
+                  if (message.role === "user") {
+                    const txt = (message.parts || []).find((p: any) => p.type === "text") as any;
+                    if (txt?.text?.startsWith("[System]")) return null;
+                  }
+                  // Check if action in this message was already completed (next user msg is [System])
+                  const actionCompleted = messages.slice(msgIdx + 1).some(m => {
+                    if (m.role !== "user") return false;
+                    const t = (m.parts || []).find((p: any) => p.type === "text") as any;
+                    return t?.text?.startsWith("[System]");
+                  });
+                  return (
                   <div key={message.id} style={{ animation: "fadeIn 0.2s ease-out" }}>
                     {message.role === "user" ? (
-                      <div className="flex justify-end mb-1">
-                        <div className="max-w-[75%] rounded-[20px] rounded-br-sm px-4 py-2.5 shadow-sm" style={{ background: tc("rgba(0,0,0,0.05)", "rgba(255,255,255,0.08)"), color: tc("#111", "#e5e5e5") }}>
-                          {(message.parts || [{ type: "text" as const, text: (message as any).content }]).map((part, i) => {
-                            if (part.type === "text") return <p key={i} className="text-[15px] leading-relaxed tracking-tight whitespace-pre-wrap">{part.text}</p>;
-                            return null;
-                          })}
-                        </div>
+                      <div className="group/msg flex justify-end mb-1 relative">
+                        <UserBubble message={message} msgIdx={msgIdx} messages={messages} setMessages={setMessages} sendMessage={sendMessage} tc={tc} />
                       </div>
                     ) : (
-                      <div className="flex gap-3 max-w-[90%] mt-2 mb-2">
+                      <div className="group/ai flex gap-3 max-w-[90%] mt-2 mb-2 relative">
                         <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-1 shadow-sm" style={{ background: tc("rgba(0,0,0,0.05)", "rgba(255,255,255,0.08)") }}>
                           <span className="text-[10px] font-bold tracking-tight" style={{ color: tc("#555", "#aaa") }}>AI</span>
                         </div>
@@ -530,15 +600,15 @@ export default function ChatPage() {
                                 if (b.type === "text" && b.content?.trim()) {
                                   return (
                                     <div key={`${i}-${bi}`} className="rounded-[20px] rounded-tl-sm px-5 py-3.5 shadow-sm" style={{ background: tc("rgba(255,255,255,0.7)", "rgba(26,28,35,0.7)"), backdropFilter: "blur(20px)", border: `1px solid ${tc("rgba(0,0,0,0.04)", "rgba(255,255,255,0.04)")}` }}>
-                                      <div className="text-[15px] leading-relaxed tracking-tight whitespace-pre-wrap" style={{ color: tc("#1c1b1b", "#e0e0e0") }}>{b.content.trim()}</div>
+                                      <div className="text-[15px] leading-relaxed tracking-tight prose prose-sm max-w-none" style={{ color: tc("#1c1b1b", "#e0e0e0") }}><Markdown components={{ a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer" className="underline" style={{ color: "var(--accent, #4A6FA5)" }}>{children}</a>, p: ({ children }) => <p className="mb-1.5 last:mb-0">{children}</p>, ol: ({ children }) => <ol className="list-decimal pl-4 mb-1.5 space-y-0.5">{children}</ol>, ul: ({ children }) => <ul className="list-disc pl-4 mb-1.5 space-y-0.5">{children}</ul>, strong: ({ children }) => <strong className="font-semibold">{children}</strong>, code: ({ children }) => <code className="px-1 py-0.5 rounded text-[13px]" style={{ background: tc("rgba(0,0,0,0.05)", "rgba(255,255,255,0.08)") }}>{children}</code> }}>{b.content.trim()}</Markdown></div>
                                     </div>
                                   );
                                 }
                                 if (b.type === "email-draft" || b.type === "email-action") {
-                                  return <div key={`${i}-${bi}`} className="w-full max-w-full"><EmailActionCard data={b.data} /></div>;
+                                  return <div key={`${i}-${bi}`} className="w-full max-w-full"><EmailActionCard data={b.data} completed={actionCompleted} onSuccess={() => sendMessage({ text: '[System] Action completed successfully. Proceed to the next task.' })} /></div>;
                                 }
                                 if (b.type === "calendar-event" || b.type === "calendar-action") {
-                                  return <div key={`${i}-${bi}`} className="w-full max-w-full"><CalendarActionCard data={b.data} /></div>;
+                                  return <div key={`${i}-${bi}`} className="w-full max-w-full"><CalendarActionCard data={b.data} completed={actionCompleted} onSuccess={() => sendMessage({ text: '[System] Action completed successfully. Proceed to the next task.' })} /></div>;
                                 }
                                 return null;
                               });
@@ -547,10 +617,14 @@ export default function ChatPage() {
                             return null;
                           })}
                         </div>
+                        <div className="absolute -bottom-6 left-10 hidden group-hover/ai:flex items-center gap-1 opacity-50">
+                          <button onClick={() => regenerate()} className="p-1 rounded hover:opacity-100 transition-opacity" style={{ color: tc("#555", "#aaa") }} title="Regenerate"><RefreshIcon size={14} /></button>
+                          <button onClick={() => { const txt = (message.parts || []).find((p: any) => p.type === "text") as any; if (txt?.text) navigator.clipboard.writeText(txt.text); }} className="p-1 rounded hover:opacity-100 transition-opacity" style={{ color: tc("#555", "#aaa") }} title="Copy"><Copy01Icon size={14} /></button>
+                        </div>
                       </div>
                     )}
                   </div>
-                ))}
+                ); })}
                 {(status === "submitted" || status === "streaming") && messages[messages.length - 1]?.role !== "assistant" && (
                   <div className="flex items-center gap-1.5 py-2" style={{ animation: "fadeIn 0.2s ease-out" }}>
                     <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "var(--accent, #999)", animationDelay: "0ms", opacity: 0.5 }} />
@@ -567,12 +641,21 @@ export default function ChatPage() {
 
             <footer className="absolute bottom-0 left-0 w-full px-6 pb-6 pt-10 pointer-events-none z-40" style={{ background: `linear-gradient(to top, var(--bg) 50%, transparent)` }}>
               <div className="max-w-[680px] mx-auto pointer-events-auto">
+                {/* Command autosuggest */}
+                {input.startsWith("/") && !trustMode && "/trust".startsWith(input.toLowerCase()) && input.length > 1 && (
+                  <div className="mb-1.5 rounded-xl px-1 py-1" style={{ background: tc("rgba(255,255,255,0.85)", "rgba(26,28,35,0.9)"), backdropFilter: "blur(20px)", border: `1px solid ${tc("rgba(0,0,0,0.06)", "rgba(255,255,255,0.06)")}` }}>
+                    <button type="button" onClick={() => { setTrustMode(true); setInput(""); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left text-[13px] transition-colors" style={{ color: tc("#333", "#ddd") }} onMouseEnter={e => (e.currentTarget.style.background = tc("rgba(0,0,0,0.04)", "rgba(255,255,255,0.04)"))} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+                      <span className="font-medium">/trust</span>
+                      <span className="text-[11px] opacity-40">auto-execute without confirmation</span>
+                    </button>
+                  </div>
+                )}
                 <form onSubmit={handleSubmit}>
                   <div className="rounded-2xl p-3 transition-all" style={{ background: tc("rgba(255,255,255,0.75)", "rgba(26,28,35,0.75)"), backdropFilter: "blur(40px) saturate(1.5)", border: `1px solid ${tc("rgba(0,0,0,0.06)", "rgba(255,255,255,0.08)")}`, boxShadow: tc("0 8px 30px rgba(0,0,0,0.06)", "0 8px 30px rgba(0,0,0,0.3)") }}>
                     <textarea
                       value={input}
                       onChange={e => setInput(e.target.value)}
-                      onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(e as any); } }}
+                      onKeyDown={e => { if (e.key === "Tab" && input.startsWith("/") && "/trust".startsWith(input.toLowerCase()) && input.length > 1) { e.preventDefault(); setTrustMode(true); setInput(""); } else if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(e as any); } }}
                       rows={2}
                       className="w-full text-[15px] placeholder:opacity-40 outline-none resize-none bg-transparent leading-[1.6] tracking-tight px-1"
                       style={{ color: tc("#1c1b1b", "#e5e5e5") }}
@@ -580,7 +663,15 @@ export default function ChatPage() {
                       disabled={status !== "ready"}
                     />
                     <div className="flex items-center justify-between mt-1 pt-2">
-                      <span className="text-[10px] font-medium tracking-wide px-1" style={{ color: tc("#bbb", "#666") }}>⏎ to send</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-medium tracking-wide px-1" style={{ color: tc("#bbb", "#666") }}>⏎ to send</span>
+                        {trustMode && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ background: "var(--accent, #4A6FA5)", color: "#fff" }}>
+                            /trust
+                            <button onClick={() => setTrustMode(false)} className="ml-0.5 opacity-70 hover:opacity-100">×</button>
+                          </span>
+                        )}
+                      </div>
                       <button type="submit" disabled={status !== "ready" || !input.trim()} className="w-8 h-8 rounded-full flex items-center justify-center disabled:opacity-20 hover:scale-105 active:scale-95 transition-all text-[13px] font-bold shadow-sm" style={{ background: "var(--accent, #111)", color: "var(--accent-fg, #fff)" }}>↑</button>
                     </div>
                   </div>
