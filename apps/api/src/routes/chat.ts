@@ -5,6 +5,7 @@ import { createVercelAiMcpClient } from "@corsair-dev/mcp";
 import { auth } from "@repo/auth";
 import { fromNodeHeaders } from "better-auth/node";
 import { Pool } from "pg";
+import { z } from "zod";
 
 export const chatRouter = Router();
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -13,7 +14,6 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const fast = createOpenAI({
   apiKey: process.env.GROQ_API_KEY,
   baseURL: "https://api.groq.com/openai/v1",
-  compatibility: "compatible",
 });
 
 // Writer model (GPT-4.1-mini) — email drafting, tool execution
@@ -120,23 +120,35 @@ async function streamToResponse(result: any, res: any, threadId?: string) {
   }
   // Persist async
   result.text.then((text: string) => {
-    if (threadId && text) pool.query(`INSERT INTO messages (id, thread_id, role, content, created_at) VALUES (gen_random_uuid(), $1, 'assistant', $2, NOW())`, [threadId, text]).catch(() => {});
-  }).catch(() => {});
+    if (threadId && text) {
+      pool.query(`INSERT INTO messages (id, thread_id, role, content, created_at) VALUES (gen_random_uuid(), $1, 'assistant', $2, NOW())`, [threadId, text])
+        .catch((err: any) => console.error("[db] error persisting assistant message:", err));
+    }
+  }).catch((err: any) => console.error("[stream] error getting text:", err));
 }
+
+const chatRequestSchema = z.object({
+  messages: z.array(z.any()).min(1),
+  threadId: z.string().uuid().optional(),
+});
 
 // ─── MAIN HANDLER ───
 chatRouter.post("/", async (req, res) => {
   const session = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) });
   if (!session) { res.status(401).json({ error: "Unauthorized" }); return; }
 
-  const { messages, threadId }: { messages: UIMessage[]; threadId?: string } = req.body;
-  if (!messages?.length) { res.status(400).json({ error: "messages required" }); return; }
+  const parsed = chatRequestSchema.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: "Invalid request body", details: parsed.error.issues }); return; }
+  const { messages, threadId } = parsed.data;
 
   // Persist user message
   const lastMsg = messages[messages.length - 1];
   if (threadId && lastMsg.role === "user") {
     const t = lastMsg.parts?.find((p: any) => p.type === "text") as any;
-    if (t?.text) await pool.query(`INSERT INTO messages (id, thread_id, role, content, created_at) VALUES (gen_random_uuid(), $1, 'user', $2, NOW())`, [threadId, t.text]).catch(() => {});
+    if (t?.text) {
+      await pool.query(`INSERT INTO messages (id, thread_id, role, content, created_at) VALUES (gen_random_uuid(), $1, 'user', $2, NOW())`, [threadId, t.text])
+        .catch((err: any) => console.error("[db] error persisting user message:", err));
+    }
   }
 
   try {

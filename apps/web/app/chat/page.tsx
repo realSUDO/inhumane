@@ -87,7 +87,7 @@ function renderMessageParts(text: string) {
     }
     try {
       const data = JSON.parse(match[2]!);
-      parts.push({ type: match[1], data });
+      parts.push({ type: match[1]!, data });
     } catch {
       parts.push({ type: "text", content: match[0] });
     }

@@ -2,6 +2,8 @@ import express from "express";
 import { logger } from "@repo/logger";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 
 import * as trpcExpress from "@trpc/server/adapters/express";
 import { generateOpenApiDocument, createOpenApiExpressMiddleware } from "trpc-to-openapi";
@@ -23,12 +25,23 @@ import { env } from "./env";
 
 export const app = express();
 
+app.use(helmet());
+
+const isProd = env.NODE_ENV === "prod" || env.NODE_ENV === "production";
 app.use(cors({
-  origin: env.NODE_ENV === "prod" || env.NODE_ENV === "production"
+  origin: isProd
     ? ["https://inhumane.in", "https://chat.inhumane.in", "https://www.inhumane.in"]
-    : "*",
+    : ["http://localhost:3000", "http://localhost:3001"],
   credentials: true,
 }));
+
+// Generous rate limiter: 500 requests per 5 minutes per IP
+const limiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 500,
+  message: { error: "Too many requests, please try again later." },
+});
+app.use("/api/", limiter);
 
 app.use(cookieParser());
 app.use(express.json());

@@ -3,17 +3,25 @@ import { corsair } from "../corsair";
 import { auth } from "@repo/auth";
 import { fromNodeHeaders } from "better-auth/node";
 import { cache } from "../cache";
+import pLimit from "p-limit";
+import { z } from "zod";
 
 export const emailsRouter = Router();
+
+const querySchema = z.object({
+  maxResults: z.coerce.number().min(1).max(50).default(20),
+  pageToken: z.string().optional(),
+  label: z.string().default("INBOX"),
+});
 
 // GET /api/emails?pageToken=...&maxResults=20&label=INBOX
 emailsRouter.get("/", async (req, res) => {
   const session = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) });
   if (!session) { res.status(401).json({ error: "Unauthorized" }); return; }
 
-  const maxResults = parseInt(req.query.maxResults as string) || 20;
-  const pageToken = req.query.pageToken as string | undefined;
-  const label = (req.query.label as string) || "INBOX";
+  const parsed = querySchema.safeParse(req.query);
+  if (!parsed.success) { res.status(400).json({ error: "Invalid query", details: parsed.error.issues }); return; }
+  const { maxResults, pageToken, label } = parsed.data;
 
   try {
     const tenant = corsair.withTenant(session.user.id);
@@ -22,8 +30,16 @@ emailsRouter.get("/", async (req, res) => {
 
     // Check cache
     const cacheKey = cache.emailsKey(session.user.id, label, pageToken || "1");
-    const cached = await cache.get<any>(cacheKey);
-    if (cached) { res.json(cached); return; }
+    let cached = await cache.get<any>(cacheKey);
+    const blockedIds = await cache.getBlockedIds(session.user.id);
+    
+    if (cached) { 
+      if (blockedIds.length > 0) {
+        cached.emails = cached.emails.filter((m: any) => !blockedIds.includes(m.id));
+      }
+      res.json(cached); 
+      return; 
+    }
 
     // Use q param for filtering - more reliable across wrappers
     if (label === "INBOX") listParams.q = "in:inbox";
@@ -38,8 +54,9 @@ emailsRouter.get("/", async (req, res) => {
     const messages = list.messages || [];
 
     // Fetch full details for each message
+    const limit = pLimit(5);
     const detailed = await Promise.all(
-      messages.map(async (m: any) => {
+      messages.map((m: any) => limit(async () => {
         const full = await tenant.gmail.api.messages.get({ id: m.id });
         const headers = full.payload?.headers || [];
         const getHeader = (name: string) => headers.find((h: any) => h.name === name)?.value || "";
@@ -72,11 +89,16 @@ emailsRouter.get("/", async (req, res) => {
           labelIds: full.labelIds || [],
           unread: (full.labelIds || []).includes("UNREAD"),
         };
-      })
+      }))
     );
 
+    // Filter out optimistically blocked emails
+    const filteredDetailed = blockedIds.length > 0 
+      ? detailed.filter(m => !blockedIds.includes(m.id))
+      : detailed;
+
     res.json({
-      emails: detailed,
+      emails: filteredDetailed,
       nextPageToken: list.nextPageToken || null,
     });
     // Cache result
@@ -127,6 +149,7 @@ emailsRouter.post("/:id/trash", async (req, res) => {
   const session = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) });
   if (!session) { res.status(401).json({ error: "Unauthorized" }); return; }
   try {
+    await cache.blockId(session.user.id, req.params.id);
     const tenant = corsair.withTenant(session.user.id);
     await tenant.gmail.api.messages.trash({ id: req.params.id });
     await cache.delPattern(`emails:${session.user.id}:*`);
@@ -146,13 +169,21 @@ emailsRouter.post("/:id/untrash", async (req, res) => {
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
+const modifyEmailSchema = z.object({
+  addLabelIds: z.array(z.string()).optional(),
+  removeLabelIds: z.array(z.string()).optional(),
+});
+
 // POST /api/emails/:id/modify - add/remove labels (star, archive, etc)
 emailsRouter.post("/:id/modify", async (req, res) => {
   const session = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) });
   if (!session) { res.status(401).json({ error: "Unauthorized" }); return; }
   try {
+    const parsed = modifyEmailSchema.safeParse(req.body);
+    if (!parsed.success) { res.status(400).json({ error: "Invalid body", details: parsed.error.issues }); return; }
+    
     const tenant = corsair.withTenant(session.user.id);
-    const { addLabelIds, removeLabelIds } = req.body;
+    const { addLabelIds, removeLabelIds } = parsed.data;
     await tenant.gmail.api.messages.modify({ id: req.params.id, addLabelIds, removeLabelIds });
     await cache.delPattern(`emails:${session.user.id}:*`);
     res.json({ ok: true });

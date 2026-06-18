@@ -31,11 +31,41 @@ export const cache = {
     try { await redis.del(key); } catch {}
   },
 
+  async delPattern(pattern: string): Promise<void> {
+    try {
+      let cursor = "0";
+      do {
+        const [nextCursor, keys] = await redis.scan(cursor, "MATCH", pattern, "COUNT", "100");
+        cursor = nextCursor;
+        if (keys.length > 0) {
+          await redis.del(...keys);
+        }
+      } while (cursor !== "0");
+    } catch {}
+  },
+
   // Scoped helpers
   emailsKey: (userId: string, label: string, page?: string) => `emails:${userId}:${label}:${page || "1"}`,
   calendarKey: (userId: string, timeMin: string, timeMax: string) => `cal:${userId}:${timeMin}:${timeMax}`,
   threadsKey: (userId: string) => `threads:${userId}`,
   messagesKey: (userId: string, threadId: string) => `msgs:${userId}:${threadId}`,
+
+  // Optimistic blocking helpers
+  async blockId(userId: string, id: string): Promise<void> {
+    try {
+      const key = `blocked:${userId}`;
+      await redis.sadd(key, id);
+      await redis.expire(key, 300); // 5 minutes TTL
+    } catch {}
+  },
+
+  async getBlockedIds(userId: string): Promise<string[]> {
+    try {
+      return await redis.smembers(`blocked:${userId}`) || [];
+    } catch {
+      return [];
+    }
+  },
 
   TTL,
 };
