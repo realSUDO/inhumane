@@ -1,12 +1,17 @@
 "use client";
 
 import { createAuthClient } from "better-auth/react";
+import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 
 const authClient = createAuthClient();
 
-export default function LoginPage() {
+function LoginForm() {
+  const searchParams = useSearchParams();
+  const callbackURL = searchParams.get("callbackURL") || "/chat";
+
   const handleGoogleSignIn = () => {
-    authClient.signIn.social({ provider: "google", callbackURL: "/" });
+    authClient.signIn.social({ provider: "google", callbackURL });
   };
 
   return (
@@ -27,5 +32,19 @@ export default function LoginPage() {
         </button>
       </div>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <main className="min-h-screen flex items-center justify-center">
+        <div className="flex flex-col items-center gap-6">
+          <h1 className="text-2xl font-semibold">Sign in to Inhumane</h1>
+        </div>
+      </main>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }
