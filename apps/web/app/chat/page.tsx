@@ -7,7 +7,7 @@ import { EmailCompose } from "./components/email-compose";
 import { CalendarEvent } from "./components/calendar-event";
 import { CalendarFull } from "./components/calendar-full";
 import { EmailInbox } from "./components/email-inbox";
-import { Mail01Icon, Calendar03Icon, PencilEdit01Icon, Logout03Icon, PlusSignIcon, Home01Icon, Clock01Icon, Settings01Icon, SentIcon, MoreHorizontalIcon, Delete02Icon, PinIcon, Archive01Icon, Edit02Icon } from "hugeicons-react";
+import { Mail01Icon, Calendar03Icon, PencilEdit01Icon, Logout03Icon, PlusSignIcon, Home01Icon, Clock01Icon, Settings01Icon, SentIcon, MoreHorizontalIcon, Delete02Icon, PinIcon, Archive01Icon, Edit02Icon, Copy01Icon, RefreshIcon } from "hugeicons-react";
 
 type Thread = { id: string; title: string; pinned: boolean; archived: boolean; created_at: string };
 type ConnectStatus = { gmail: boolean; googlecalendar: boolean };
@@ -64,6 +64,44 @@ function ThreadMenu({ thread, onAction, isRenaming, setRenaming }: { thread: Thr
   );
 }
 
+
+function UserBubble({ message, msgIdx, messages, setMessages, sendMessage, tc }: { message: any; msgIdx: number; messages: any[]; setMessages: any; sendMessage: any; tc: (l: string, d: string) => string }) {
+  const [editing, setEditing] = useState(false);
+  const txt = (message.parts || []).find((p: any) => p.type === "text") as any;
+  const [editText, setEditText] = useState(txt?.text || "");
+
+  const submitEdit = () => {
+    if (!editText.trim()) return;
+    setMessages(messages.slice(0, msgIdx));
+    setEditing(false);
+    setTimeout(() => sendMessage({ text: editText }), 50);
+  };
+
+  if (editing) return (
+    <div className="max-w-[75%] w-full">
+      <textarea autoFocus value={editText} onChange={e => setEditText(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submitEdit(); } }} className="w-full rounded-[16px] px-4 py-2.5 text-[15px] leading-relaxed outline-none resize-none" style={{ background: tc("rgba(0,0,0,0.05)", "rgba(255,255,255,0.08)"), color: tc("#111", "#e5e5e5"), border: `2px solid var(--accent, #4A6FA5)` }} rows={2} />
+      <div className="flex justify-end gap-2 mt-1.5">
+        <button onClick={() => setEditing(false)} className="text-[11px] px-3 py-1 rounded-full" style={{ color: tc("#666", "#aaa") }}>Cancel</button>
+        <button onClick={submitEdit} className="text-[11px] px-3 py-1 rounded-full text-white" style={{ background: "var(--accent)" }}>Save & Send</button>
+      </div>
+    </div>
+  );
+
+  return (
+    <>
+      <div className="max-w-[75%] rounded-[20px] rounded-br-sm px-4 py-2.5 shadow-sm" style={{ background: tc("rgba(0,0,0,0.05)", "rgba(255,255,255,0.08)"), color: tc("#111", "#e5e5e5") }}>
+        {(message.parts || [{ type: "text" as const, text: (message as any).content }]).map((part: any, i: number) => {
+          if (part.type === "text") return <p key={i} className="text-[15px] leading-relaxed tracking-tight whitespace-pre-wrap">{part.text}</p>;
+          return null;
+        })}
+      </div>
+      <div className="absolute -bottom-6 right-2 hidden group-hover/msg:flex items-center gap-1 opacity-50">
+        <button onClick={() => setEditing(true)} className="p-1 rounded hover:opacity-100 transition-opacity" style={{ color: tc("#555", "#aaa") }} title="Edit"><PencilEdit01Icon size={14} /></button>
+        <button onClick={() => { if (txt?.text) navigator.clipboard.writeText(txt.text); }} className="p-1 rounded hover:opacity-100 transition-opacity" style={{ color: tc("#555", "#aaa") }} title="Copy"><Copy01Icon size={14} /></button>
+      </div>
+    </>
+  );
+}
 
 function EmailActionCard({ data, onSuccess, completed }: { data: { to?: string; subject?: string; body?: string }; onSuccess?: () => void; completed?: boolean }) {
   const dark = typeof document !== "undefined" && document.documentElement.classList.contains("dark");
@@ -231,7 +269,7 @@ export default function ChatPage() {
     body: () => ({ threadId: activeThreadRef.current }),
   }), []);
 
-  const { messages, sendMessage, status, setMessages } = useChat({ transport });
+  const { messages, sendMessage, status, setMessages, regenerate } = useChat({ transport });
 
   useEffect(() => {
     fetch("/api/threads", { credentials: "include" }).then(r => r.json()).then(setThreads).catch(() => { });
@@ -521,16 +559,11 @@ export default function ChatPage() {
                   return (
                   <div key={message.id} style={{ animation: "fadeIn 0.2s ease-out" }}>
                     {message.role === "user" ? (
-                      <div className="flex justify-end mb-1">
-                        <div className="max-w-[75%] rounded-[20px] rounded-br-sm px-4 py-2.5 shadow-sm" style={{ background: tc("rgba(0,0,0,0.05)", "rgba(255,255,255,0.08)"), color: tc("#111", "#e5e5e5") }}>
-                          {(message.parts || [{ type: "text" as const, text: (message as any).content }]).map((part, i) => {
-                            if (part.type === "text") return <p key={i} className="text-[15px] leading-relaxed tracking-tight whitespace-pre-wrap">{part.text}</p>;
-                            return null;
-                          })}
-                        </div>
+                      <div className="group/msg flex justify-end mb-1 relative">
+                        <UserBubble message={message} msgIdx={msgIdx} messages={messages} setMessages={setMessages} sendMessage={sendMessage} tc={tc} />
                       </div>
                     ) : (
-                      <div className="flex gap-3 max-w-[90%] mt-2 mb-2">
+                      <div className="group/ai flex gap-3 max-w-[90%] mt-2 mb-2 relative">
                         <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-1 shadow-sm" style={{ background: tc("rgba(0,0,0,0.05)", "rgba(255,255,255,0.08)") }}>
                           <span className="text-[10px] font-bold tracking-tight" style={{ color: tc("#555", "#aaa") }}>AI</span>
                         </div>
@@ -558,6 +591,10 @@ export default function ChatPage() {
                             if (part.type.startsWith("tool-")) { const p = part as any; return (<div key={i} className="mt-1 inline-flex items-center gap-1.5 text-[11px] font-medium tracking-tight rounded-md px-2.5 py-1.5" style={{ background: tc("rgba(0,0,0,0.04)", "rgba(255,255,255,0.06)"), color: tc("#555", "#999") }}><span>⚡</span><span>{p.toolName || "Tool"}</span>{p.state === "result" && <span style={{ color: "var(--accent)" }}>✓</span>}{p.state === "call" && <span className="animate-pulse">…</span>}</div>); }
                             return null;
                           })}
+                        </div>
+                        <div className="absolute -bottom-6 left-10 hidden group-hover/ai:flex items-center gap-1 opacity-50">
+                          <button onClick={() => regenerate()} className="p-1 rounded hover:opacity-100 transition-opacity" style={{ color: tc("#555", "#aaa") }} title="Regenerate"><RefreshIcon size={14} /></button>
+                          <button onClick={() => { const txt = (message.parts || []).find((p: any) => p.type === "text") as any; if (txt?.text) navigator.clipboard.writeText(txt.text); }} className="p-1 rounded hover:opacity-100 transition-opacity" style={{ color: tc("#555", "#aaa") }} title="Copy"><Copy01Icon size={14} /></button>
                         </div>
                       </div>
                     )}
