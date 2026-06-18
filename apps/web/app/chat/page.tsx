@@ -218,7 +218,7 @@ export default function ChatPage() {
       "What can I do for you today?",
       "Let's get some work done."
     ];
-    setGreetingMsg(msgs[Math.floor(Math.random() * msgs.length)]);
+    setGreetingMsg(msgs[Math.floor(Math.random() * msgs.length)]!);
   }, []);
 
   // Stable transport - threadId passed via body dynamically
