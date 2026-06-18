@@ -91,7 +91,7 @@ export function EmailInbox({ isDark, onClose, expanded, onExpand }: { isDark: bo
   // Email detail view
   if (openEmail) {
     return (
-      <div className={expanded ? "absolute inset-0 z-30 flex flex-col" : "w-full max-w-[620px]"} style={{ background: tc("#fff", "#161b22"), animation: "fadeIn 0.15s ease-out", ...(expanded ? {} : { borderRadius: 16, border: `1px solid ${tc("rgba(0,0,0,0.08)", "rgba(255,255,255,0.08)")}`, boxShadow: tc("0 4px 24px rgba(0,0,0,0.08)", "0 4px 24px rgba(0,0,0,0.4)"), overflow: "hidden" }) }}>
+      <div className={expanded ? "absolute inset-0 z-[60] flex flex-col" : "w-full max-w-[620px]"} style={{ background: tc("#fff", "#161b22"), animation: "fadeIn 0.15s ease-out", ...(expanded ? {} : { borderRadius: 16, border: `1px solid ${tc("rgba(0,0,0,0.08)", "rgba(255,255,255,0.08)")}`, boxShadow: tc("0 4px 24px rgba(0,0,0,0.08)", "0 4px 24px rgba(0,0,0,0.4)"), overflow: "hidden" }) }}>
         {/* Header */}
         <div className="flex items-center gap-2 px-4 py-2.5 shrink-0" style={{ borderBottom: `1px solid ${tc("#eee", "rgba(255,255,255,0.06)")}` }}>
           <button onClick={() => setOpenEmail(null)} className="p-1.5 rounded-full hover:bg-black/5" style={{ color: tc("#444", "#aaa") }}><BackIcon /></button>
@@ -122,7 +122,7 @@ export function EmailInbox({ isDark, onClose, expanded, onExpand }: { isDark: bo
   // Expanded full view
   if (expanded) {
     return (
-      <div className="absolute inset-0 z-30 flex" style={{ background: tc("#f6f8fc", "#0d1117"), animation: "fadeIn 0.15s ease-out" }}>
+      <div className="absolute inset-0 z-[60] flex" style={{ background: tc("#f6f8fc", "#0d1117"), animation: "fadeIn 0.15s ease-out" }}>
         {/* Sidebar - slides */}
         <div className="shrink-0 flex flex-col pt-2 transition-all duration-200 overflow-hidden" style={{ width: sidebarOpen ? 220 : 0, background: tc("#f6f8fc", "#0d1117") }}>
           {LABELS.map(({ id, name, Icon }) => (

@@ -35,7 +35,8 @@ threadsRouter.post("/", async (req, res) => {
     `INSERT INTO threads (id, user_id, title, created_at, updated_at) VALUES (gen_random_uuid(), $1, $2, NOW(), NOW()) RETURNING id, title, pinned, archived, created_at`,
     [session.user.id, title || "New conversation"]
   );
-  await cache.delPattern(`threads:${session.user.id}*`);
+  await cache.del(cache.threadsKey(session.user.id));
+  await cache.del(cache.threadsKey(session.user.id) + ":arch");
   res.json(rows[0]);
 });
 
@@ -59,7 +60,8 @@ threadsRouter.patch("/:id", async (req, res) => {
     `UPDATE threads SET ${updates.join(", ")} WHERE id = $${idx++} AND user_id = $${idx} RETURNING id, title, pinned, archived`,
     values
   );
-  await cache.delPattern(`threads:${session.user.id}*`);
+  await cache.del(cache.threadsKey(session.user.id));
+  await cache.del(cache.threadsKey(session.user.id) + ":arch");
   res.json(rows[0] || { error: "Not found" });
 });
 
@@ -92,7 +94,8 @@ threadsRouter.post("/:id/messages", async (req, res) => {
   );
   await pool.query(`UPDATE threads SET updated_at = NOW() WHERE id = $1`, [req.params.id]);
   await cache.del(cache.messagesKey(session.user.id, req.params.id));
-  await cache.delPattern(`threads:${session.user.id}*`);
+  await cache.del(cache.threadsKey(session.user.id));
+  await cache.del(cache.threadsKey(session.user.id) + ":arch");
   res.json(rows[0]);
 });
 
@@ -102,7 +105,8 @@ threadsRouter.delete("/:id", async (req, res) => {
   if (!session) { res.status(401).json({ error: "Unauthorized" }); return; }
 
   await pool.query(`DELETE FROM threads WHERE id = $1 AND user_id = $2`, [req.params.id, session.user.id]);
-  await cache.delPattern(`threads:${session.user.id}*`);
+  await cache.del(cache.threadsKey(session.user.id));
+  await cache.del(cache.threadsKey(session.user.id) + ":arch");
   await cache.del(cache.messagesKey(session.user.id, req.params.id));
   res.json({ ok: true });
 });

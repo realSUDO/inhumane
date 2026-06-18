@@ -163,7 +163,7 @@ export function CalendarFull({ isDark, onClose, onMinimize }: { isDark: boolean;
   const monthYear = weekStart.toLocaleDateString("en-US", { month: "long", year: "numeric" });
 
   return (
-    <div className="absolute inset-0 z-30 flex flex-col" style={{ background: tc("#fff", "#111317"), animation: "fadeIn 0.15s ease-out" }} onClick={() => { setCtxMenu(null); }}>
+    <div className="absolute inset-0 z-[60] flex flex-col" style={{ background: tc("#fff", "#111317"), animation: "fadeIn 0.15s ease-out" }} onClick={() => { setCtxMenu(null); }}>
       {/* Toolbar */}
       <div className="flex items-center gap-3 px-4 py-2 shrink-0" style={{ borderBottom: `1px solid ${tc("#dadce0", "rgba(255,255,255,0.06)")}` }}>
         <img src="/calendar.png" alt="Calendar" className="w-6 h-6 object-contain" />
@@ -232,7 +232,7 @@ export function CalendarFull({ isDark, onClose, onMinimize }: { isDark: boolean;
 
       {/* Event popup editor */}
       {popup && (
-        <div className="fixed z-50" style={{ left: popup.x, top: popup.y }} onClick={e => e.stopPropagation()}>
+        <div className="fixed z-[70]" style={{ left: popup.x, top: popup.y }} onClick={e => e.stopPropagation()}>
           <div className="w-[320px] rounded-lg shadow-2xl overflow-hidden" style={{ background: tc("#fff", "#2a2d35"), border: `1px solid ${tc("#dadce0", "rgba(255,255,255,0.1)")}` }}>
             <div className="h-1" style={{ background: getColor(popupColor) }} />
             <div className="p-4">
@@ -270,7 +270,7 @@ export function CalendarFull({ isDark, onClose, onMinimize }: { isDark: boolean;
 
       {/* Right-click color context menu */}
       {ctxMenu && (
-        <div className="fixed z-50 rounded-lg shadow-xl py-2 px-1" style={{ left: ctxMenu.x, top: ctxMenu.y, background: tc("#fff", "#2a2d35"), border: `1px solid ${tc("#dadce0", "rgba(255,255,255,0.1)")}` }} onClick={e => e.stopPropagation()}>
+        <div className="fixed z-[70] rounded-lg shadow-xl py-2 px-1" style={{ left: ctxMenu.x, top: ctxMenu.y, background: tc("#fff", "#2a2d35"), border: `1px solid ${tc("#dadce0", "rgba(255,255,255,0.1)")}` }} onClick={e => e.stopPropagation()}>
           <div className="px-3 py-1 text-[11px] font-medium" style={{ color: tc("#70757a", "#999") }}>Event color</div>
           <div className="flex flex-wrap gap-1.5 px-3 py-2 max-w-[180px]">
             {COLORS.map(c => (

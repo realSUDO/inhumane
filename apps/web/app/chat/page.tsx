@@ -17,35 +17,46 @@ function ThreadMenu({ thread, onAction, isRenaming, setRenaming }: { thread: Thr
   const [open, setOpen] = useState(false);
   const [flipUp, setFlipUp] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node) && !btnRef.current?.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    if (open) document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open]);
 
   const handleOpen = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (btnRef.current) {
       const rect = btnRef.current.getBoundingClientRect();
-      setFlipUp(rect.bottom + 180 > window.innerHeight);
+      setFlipUp(rect.bottom > window.innerHeight - 180);
     }
     setOpen(!open);
   };
 
   return (
     <div className="relative">
-      <button ref={btnRef} data-menu-trigger onClick={handleOpen} className="p-1 rounded transition-colors" style={{ color: "var(--fg-secondary, #999)" }}>
+      <button ref={btnRef} data-menu-trigger onClick={handleOpen} className="p-1 rounded opacity-50 hover:opacity-100 transition-opacity" style={{ color: "var(--fg-primary, #111)" }}>
         <MoreHorizontalIcon size={14} />
       </button>
       {open && (
-        <div className={`absolute right-0 z-50 w-36 rounded-lg shadow-2xl py-1 animate-[fadeIn_0.15s_ease-out] ${flipUp ? "bottom-7" : "top-7"}`} style={{ background: "var(--bg, #f4f4f8)", border: "1px solid var(--fg-secondary, #e8e8ec)" }} onMouseLeave={() => setOpen(false)}>
-          <button onClick={e => { e.stopPropagation(); setRenaming(true); setOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:opacity-70 transition-opacity" style={{ color: "var(--fg-primary, #1a1a2e)" }}>
-            <Edit02Icon size={12} /> Rename
+        <div ref={menuRef} className={`fixed z-[100] w-36 rounded-xl py-1.5 animate-[fadeIn_0.1s_ease-out]`} style={{ top: flipUp ? undefined : btnRef.current?.getBoundingClientRect().bottom! + 4, bottom: flipUp ? window.innerHeight - btnRef.current?.getBoundingClientRect().top! + 4 : undefined, left: btnRef.current?.getBoundingClientRect().right! - 144, background: "var(--bg, #fff)", border: `1px solid color-mix(in srgb, var(--fg-secondary) 15%, transparent)`, boxShadow: `0 10px 30px -5px color-mix(in srgb, var(--fg-primary) 15%, transparent)` }}>
+          <button onClick={e => { e.stopPropagation(); setRenaming(true); setOpen(false); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-[12px] font-medium hover:bg-black/5 dark:hover:bg-white/5 transition-colors" style={{ color: "var(--fg-primary, #1a1a2e)" }}>
+            <Edit02Icon size={13} /> Rename
           </button>
-          <button onClick={e => { e.stopPropagation(); onAction("pin", thread.id); setOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:opacity-70 transition-opacity" style={{ color: "var(--fg-primary, #1a1a2e)" }}>
-            <PinIcon size={12} /> {thread.pinned ? "Unpin" : "Pin"}
+          <button onClick={e => { e.stopPropagation(); onAction("pin", thread.id); setOpen(false); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-[12px] font-medium hover:bg-black/5 dark:hover:bg-white/5 transition-colors" style={{ color: "var(--fg-primary, #1a1a2e)" }}>
+            <PinIcon size={13} /> {thread.pinned ? "Unpin" : "Pin"}
           </button>
-          <button onClick={e => { e.stopPropagation(); onAction("archive", thread.id); setOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:opacity-70 transition-opacity" style={{ color: "var(--fg-primary, #1a1a2e)" }}>
-            <Archive01Icon size={12} /> Archive
+          <button onClick={e => { e.stopPropagation(); onAction("archive", thread.id); setOpen(false); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-[12px] font-medium hover:bg-black/5 dark:hover:bg-white/5 transition-colors" style={{ color: "var(--fg-primary, #1a1a2e)" }}>
+            <Archive01Icon size={13} /> Archive
           </button>
-          <div className="my-1" style={{ borderTop: "1px solid var(--fg-secondary, #e8e8ec)", opacity: 0.3 }} />
-          <button onClick={e => { e.stopPropagation(); onAction("delete", thread.id); setOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-500 hover:opacity-70 transition-opacity">
-            <Delete02Icon size={12} /> Delete
+          <div className="my-1.5" style={{ borderTop: `1px solid color-mix(in srgb, var(--fg-secondary) 15%, transparent)` }} />
+          <button onClick={e => { e.stopPropagation(); onAction("delete", thread.id); setOpen(false); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-[12px] font-medium text-red-500 hover:bg-red-500/10 transition-colors">
+            <Delete02Icon size={13} /> Delete
           </button>
         </div>
       )}
@@ -64,44 +75,40 @@ function CalendarActionCard({ data }: { data: { summary?: string; start?: string
   return <CalendarEvent isDark={dark} onClose={() => {}} prefill={data} />;
 }
 
-function renderMessageContent(text: string) {
-  // Parse email-draft (legacy), email-action, and calendar-action blocks
+function renderMessageParts(text: string) {
   const blockRegex = /```(email-draft|email-action|calendar-event|calendar-action)\n([\s\S]*?)\n```/g;
-  const parts: React.ReactNode[] = [];
+  const parts: { type: string, content?: string, data?: any }[] = [];
   let lastIndex = 0;
   let match;
 
   while ((match = blockRegex.exec(text)) !== null) {
     if (match.index > lastIndex) {
-      parts.push(<span key={lastIndex}>{text.slice(lastIndex, match.index)}</span>);
+      parts.push({ type: "text", content: text.slice(lastIndex, match.index) });
     }
     try {
       const data = JSON.parse(match[2]!);
-      if (match[1] === "email-draft" || match[1] === "email-action") {
-        parts.push(<EmailActionCard key={match.index} data={data} />);
-      } else {
-        parts.push(<CalendarActionCard key={match.index} data={data} />);
-      }
+      parts.push({ type: match[1], data });
     } catch {
-      parts.push(<span key={match.index}>{match[0]}</span>);
+      parts.push({ type: "text", content: match[0] });
     }
     lastIndex = match.index + match[0].length;
   }
 
   if (lastIndex < text.length) {
-    parts.push(<span key={lastIndex}>{text.slice(lastIndex)}</span>);
+    parts.push({ type: "text", content: text.slice(lastIndex) });
   }
 
-  return parts.length > 0 ? parts : text;
+  return parts;
 }
 
-function ThreadItem({ thread, active, onSelect, onAction }: { thread: Thread; active: boolean; onSelect: () => void; onAction: (action: string, id: string, data?: any) => void }) {
+function ThreadItem({ thread, active, onSelect, onAction, collapsed, isDark }: { thread: Thread; active: boolean; onSelect: () => void; onAction: (action: string, id: string, data?: any) => void; collapsed?: boolean; isDark: boolean }) {
   const [renaming, setRenaming] = useState(false);
   const [title, setTitle] = useState(thread.title);
+  const tc = (light: string, dark: string) => isDark ? dark : light;
 
   useEffect(() => { setTitle(thread.title); }, [thread.title]);
 
-  if (renaming) return (
+  if (renaming && !collapsed) return (
     <div className="px-2 py-1">
       <input
         autoFocus
@@ -109,25 +116,29 @@ function ThreadItem({ thread, active, onSelect, onAction }: { thread: Thread; ac
         onChange={e => setTitle(e.target.value)}
         onBlur={() => { if (title.trim()) onAction("rename", thread.id, title); setRenaming(false); }}
         onKeyDown={e => { if (e.key === "Enter") { if (title.trim()) onAction("rename", thread.id, title); setRenaming(false); } if (e.key === "Escape") { setTitle(thread.title); setRenaming(false); } }}
-        className="w-full bg-[#e8e8ec] text-[#1a1a2e] text-xs px-2 py-1.5 rounded outline-none border border-[#d4d4dc]"
+        className="w-full bg-transparent text-[13px] px-2 py-1.5 rounded outline-none border border-black/10 dark:border-white/10"
+        style={{ color: "var(--fg-primary)" }}
         onClick={e => e.stopPropagation()}
       />
     </div>
   );
 
   return (
-    <div className="group flex items-center rounded-lg transition-all duration-100"
-      style={{ backgroundColor: active ? "rgba(128,128,128,0.1)" : undefined }}
-      onMouseEnter={e => { if (!active) e.currentTarget.style.backgroundColor = "rgba(128,128,128,0.07)"; }}
+    <div className="group flex items-center rounded-lg transition-all duration-200 relative overflow-hidden"
+      style={{ backgroundColor: active ? tc("rgba(0,0,0,0.04)", "rgba(255,255,255,0.06)") : undefined }}
+      onMouseEnter={e => { if (!active) e.currentTarget.style.backgroundColor = tc("rgba(0,0,0,0.02)", "rgba(255,255,255,0.03)"); }}
       onMouseLeave={e => { if (!active) e.currentTarget.style.backgroundColor = ""; }}
       onContextMenu={(e) => { e.preventDefault(); setRenaming(false); const menu = e.currentTarget.querySelector("[data-menu-trigger]") as HTMLElement; menu?.click(); }}>
-      <button onClick={onSelect} className="flex-1 flex items-center gap-2 px-3 py-2 text-left text-[12.5px] truncate" style={{ color: active ? "var(--fg-primary, #111)" : "var(--fg-secondary, #777)", fontWeight: active ? 500 : 400 }}>
-        {thread.pinned && <PinIcon size={9} className="shrink-0 opacity-30" />}
-        <span className="truncate">{thread.title}</span>
+      {active && <div className="absolute left-0 top-0 bottom-0 w-[3px]" style={{ background: "var(--accent)" }} />}
+      <button onClick={onSelect} className={`flex-1 flex items-center py-2 text-[14px] truncate transition-all ${collapsed ? 'justify-center px-0' : 'gap-2.5 px-3 text-left'}`} style={{ color: active ? "var(--fg-primary, #111)" : "var(--fg-secondary, #777)", fontWeight: active ? 500 : 400 }}>
+        {thread.pinned ? <PinIcon size={16} className="shrink-0 opacity-80" /> : (collapsed ? <div className="w-6 h-6 rounded flex items-center justify-center text-[11px] font-bold uppercase shrink-0 transition-colors" style={{ background: active ? "var(--accent)" : tc("rgba(0,0,0,0.05)", "rgba(255,255,255,0.1)"), color: active ? "#fff" : "inherit" }}>{thread.title.charAt(0)}</div> : null)}
+        {!collapsed && <span className="truncate">{thread.title}</span>}
       </button>
-      <div className="hidden group-hover:block pr-1">
-        <ThreadMenu thread={thread} onAction={onAction} isRenaming={renaming} setRenaming={setRenaming} />
-      </div>
+      {!collapsed && (
+        <div className="hidden group-hover:block pr-1">
+          <ThreadMenu thread={thread} onAction={onAction} isRenaming={renaming} setRenaming={setRenaming} />
+        </div>
+      )}
     </div>
   );
 }
@@ -197,6 +208,18 @@ export default function ChatPage() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const [greetingMsg, setGreetingMsg] = useState("How can I help you get things done?");
+  useEffect(() => {
+    const msgs = [
+      "What's on your mind today?",
+      "How can I help you get things done?",
+      "Ready to tackle your day?",
+      "What can I do for you today?",
+      "Let's get some work done."
+    ];
+    setGreetingMsg(msgs[Math.floor(Math.random() * msgs.length)]);
+  }, []);
+
   // Stable transport - threadId passed via body dynamically
   const activeThreadRef = useRef<string | null>(null);
   activeThreadRef.current = activeThread;
@@ -241,12 +264,20 @@ export default function ChatPage() {
     if (!activeThread) { setMessages([]); setShowChat(false); return; }
     // Skip DB load if we just created this thread (messages are already in useChat state)
     if (justCreatedRef.current) { justCreatedRef.current = false; return; }
+    
     setShowChat(true);
+    setMessages([]); // prevent flash of old messages
+    
     fetch(`/api/threads/${activeThread}/messages`, { credentials: "include" })
       .then(r => r.json())
       .then((msgs: any[]) => {
         if (!Array.isArray(msgs) || msgs.length === 0) { setMessages([]); return; }
-        setMessages(msgs.map(m => ({ id: m.id, role: m.role, parts: [{ type: "text" as const, text: m.content }] })));
+        setMessages(msgs.map(m => ({ 
+          id: m.id, 
+          role: m.role, 
+          content: m.content, 
+          parts: [{ type: "text" as const, text: m.content }] 
+        })));
       })
       .catch(() => setMessages([]));
   }, [activeThread]);
@@ -255,21 +286,21 @@ export default function ChatPage() {
 
   const handleThreadAction = async (action: string, id: string, data?: any) => {
     if (action === "delete") {
-      await fetch(`/api/threads/${id}`, { method: "DELETE", credentials: "include" });
       setThreads(prev => prev.filter(t => t.id !== id));
       if (activeThread === id) { setActiveThread(null); setMessages([]); setShowChat(false); }
+      fetch(`/api/threads/${id}`, { method: "DELETE", credentials: "include" }).catch(console.error);
     } else if (action === "rename") {
-      await fetch(`/api/threads/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ title: data }) });
       setThreads(prev => prev.map(t => t.id === id ? { ...t, title: data } : t));
+      fetch(`/api/threads/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ title: data }) }).catch(console.error);
     } else if (action === "pin") {
       const thread = threads.find(t => t.id === id);
       const newPinned = !thread?.pinned;
-      await fetch(`/api/threads/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ pinned: newPinned }) });
       setThreads(prev => prev.map(t => t.id === id ? { ...t, pinned: newPinned } : t));
+      fetch(`/api/threads/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ pinned: newPinned }) }).catch(console.error);
     } else if (action === "archive") {
-      await fetch(`/api/threads/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ archived: true }) });
       setThreads(prev => prev.filter(t => t.id !== id));
       if (activeThread === id) { setActiveThread(null); setMessages([]); setShowChat(false); }
+      fetch(`/api/threads/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ archived: true }) }).catch(console.error);
     }
   };
 
@@ -285,6 +316,7 @@ export default function ChatPage() {
       .then(thread => {
         setThreads(prev => [thread, ...prev]);
         justCreatedRef.current = true;
+        activeThreadRef.current = thread.id; // Mutate ref immediately for the transport layer
         setActiveThread(thread.id);
         setShowChat(true);
         sendMessage({ text });
@@ -313,77 +345,90 @@ export default function ChatPage() {
   };
 
   const tints = isDark
-    ? [{ c: "#7B93FF", bg: "#080b14" }, { c: "#5DDCCC", bg: "#081210" }, { c: "#FF7BAA", bg: "#120810" }]
+    ? [{ c: "#7B93FF", bg: "#000000" }, { c: "#5DDCCC", bg: "#000000" }, { c: "#FF7BAA", bg: "#000000" }]
     : [{ c: "#4A6FA5", bg: "#f2f6fc" }, { c: "#2D6A4F", bg: "#f0f8f4" }, { c: "#8B5CF6", bg: "#f5f2ff" }];
 
   const tc = (light: string, dark: string) => isDark ? dark : light;
 
   return (
-    <div className="flex h-screen overflow-hidden relative" style={{ background: "var(--bg)", fontFamily: "'Inter', -apple-system, sans-serif", color: tc("#1c1b1b", "#e0e0e0") }}>
-      {/* Ambient background */}
-      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-        {isDark ? (<>
-          <div className="absolute -top-[20%] -right-[10%] w-[50vw] h-[50vw] rounded-full" style={{ background: `radial-gradient(circle, var(--accent, #4A6FA5), transparent 65%)`, opacity: 0.15, filter: "blur(100px)" }} />
-          <div className="absolute -bottom-[15%] -left-[10%] w-[40vw] h-[40vw] rounded-full" style={{ background: `radial-gradient(circle, var(--accent, #4A6FA5), transparent 65%)`, opacity: 0.1, filter: "blur(120px)" }} />
-        </>) : (
-          <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, color-mix(in srgb, var(--accent, #4A6FA5) 4%, transparent) 0%, transparent 50%, color-mix(in srgb, var(--accent, #4A6FA5) 3%, transparent) 100%)` }} />
-        )}
+    <div className="flex h-screen overflow-hidden relative" style={{ background: "var(--bg)", fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif", color: tc("#1c1b1b", "#e0e0e0") }}>
+      {/* Premium Mesh Canvas with Top Glow */}
+      <div className={`fixed inset-0 pointer-events-none z-0 transition-opacity duration-1000 ${showChat ? 'opacity-[0.04] dark:opacity-[0.06]' : 'opacity-[0.15] dark:opacity-[0.3]'}`}>
+        {/* Base Flow */}
+        <div className="absolute inset-0"
+             style={{ 
+               background: `linear-gradient(-45deg, var(--bg), color-mix(in srgb, var(--accent) 30%, var(--bg)), var(--bg), color-mix(in srgb, var(--accent) 15%, var(--bg)))`,
+               backgroundSize: "400% 400%",
+               animation: "mesh-flow 15s ease infinite"
+             }} 
+        />
+        {/* Subtle Top Glow Overlay */}
+        <div className="absolute top-[-20vh] left-0 w-full h-[60vh] mix-blend-screen dark:mix-blend-lighten"
+             style={{ 
+               background: "radial-gradient(100% 100% at 50% 0%, color-mix(in srgb, var(--accent) 50%, white) 0%, transparent 80%)", 
+               animation: "gemini-breathe 8s ease-in-out infinite alternate" 
+             }} 
+        />
       </div>
       {/* Noise */}
       <div className="fixed inset-0 pointer-events-none z-[1]" style={{ opacity: tc("0.018", "0.025"), backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")` }} />
       <ConnectModal status={connectStatus} onConnect={openConnectPopup} />
 
-      <aside className="hidden md:flex flex-col h-full fixed left-0 top-0 p-4 gap-4 z-50 transition-all duration-200" style={{ width: sidebarOpen ? 260 : 0, padding: sidebarOpen ? 16 : 0, overflow: "hidden", background: tc("rgba(255,255,255,0.5)", "rgba(10,12,18,0.7)"), backdropFilter: "blur(50px) saturate(1.6)", borderRight: sidebarOpen ? `1px solid ${tc("rgba(0,0,0,0.04)", "rgba(255,255,255,0.04)")}` : "none" }}>
-        <div className="px-1 py-0.5 flex items-center justify-between">
-          <h1 className="text-[18px] font-semibold tracking-[-0.03em]" style={{ color: tc("#111", "#f0f0f0") }}>Inhumane</h1>
-          <button onClick={() => setSidebarOpen(false)} className="p-1.5 rounded-lg opacity-40 hover:opacity-80 transition-opacity" style={{ color: tc("#333", "#ccc") }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M11 19l-7-7 7-7M18 19l-7-7 7-7"/></svg>
+      <aside className="hidden md:flex flex-col fixed top-3 bottom-3 py-4 gap-4 z-50 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] rounded-2xl shadow-sm" style={{ width: sidebarOpen ? 260 : 64, left: 12, paddingLeft: sidebarOpen ? 16 : 8, paddingRight: sidebarOpen ? 16 : 8, overflow: "hidden", background: tc("#FAFAFA", "#131417"), border: `1px solid ${tc("rgba(0,0,0,0.06)", "rgba(255,255,255,0.06)")}` }}>
+        <div className={`px-1 py-0.5 flex items-center ${sidebarOpen ? 'justify-between' : 'justify-center'}`}>
+          {sidebarOpen && <h1 className="text-[20px] font-semibold tracking-tight" style={{ color: tc("#111", "#f0f0f0") }}>Inhumane</h1>}
+          <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-1.5 rounded-lg opacity-40 hover:opacity-80 transition-all hover:bg-black/5 dark:hover:bg-white/5 shrink-0" style={{ color: tc("#333", "#ccc") }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M4 6h16M4 12h16M4 18h16"/></svg>
           </button>
         </div>
 
-        <button onClick={() => { setActiveThread(null); setShowChat(true); setMessages([]); }} className="flex items-center gap-2.5 w-full px-4 py-3 rounded-xl text-[13px] font-medium hover:opacity-90 active:scale-[0.97] transition-all" style={{ background: "var(--accent, #111)", color: "#fff", opacity: 1 }}>
-          <PlusSignIcon size={16} /> New Thread
+        <button onClick={() => { setActiveThread(null); setShowChat(true); setMessages([]); }} className={`flex items-center w-full py-2.5 rounded-xl text-[14px] font-medium hover:opacity-90 active:scale-[0.97] transition-all shadow-sm ${sidebarOpen ? 'gap-2.5 px-4 justify-start' : 'justify-center'}`} style={{ background: "var(--accent, #111)", color: "#fff", opacity: 1 }}>
+          <PlusSignIcon size={16} className="shrink-0" /> {sidebarOpen && "New Thread"}
         </button>
 
         <div className="flex-1 overflow-y-auto -mx-1 px-1 space-y-4" style={{ scrollbarWidth: "none" }}>
           {groupThreadsByDate(threads).map(group => (
-            <div key={group.label}>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.06em] px-2 mb-1.5" style={{ color: tc("#aaa", "#555") }}>{group.label}</p>
+            <div key={group.label} className={sidebarOpen ? "mb-4" : "mb-2"}>
+              {sidebarOpen && <p className="text-[10px] font-semibold uppercase tracking-[0.06em] px-2 mb-1.5" style={{ color: tc("#aaa", "#555") }}>{group.label}</p>}
               {group.threads.map(t => (
-                <ThreadItem key={t.id} thread={t} active={activeThread === t.id} onSelect={() => setActiveThread(t.id)} onAction={handleThreadAction} />
+                <ThreadItem key={t.id} thread={t} active={activeThread === t.id} onSelect={() => setActiveThread(t.id)} onAction={handleThreadAction} collapsed={!sidebarOpen} isDark={isDark} />
               ))}
             </div>
           ))}
         </div>
 
-        {/* Accent & Profile */}
-        <div className="px-1 pt-3 space-y-3" style={{ borderTop: `1px solid ${tc("rgba(0,0,0,0.05)", "rgba(255,255,255,0.05)")}` }}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              {tints.map(t => (
-                <button key={t.c} onClick={() => { document.documentElement.style.setProperty("--accent", t.c); document.documentElement.style.setProperty("--bg", t.bg); }} className="w-[18px] h-[18px] rounded-full hover:scale-[1.15] active:scale-90 transition-all cursor-pointer" style={{ background: t.c }} />
-              ))}
-            </div>
-            <button onClick={() => { const next = !isDark; setIsDark(next); document.documentElement.classList.toggle("dark", next); document.documentElement.style.setProperty("--bg", next ? "#080b14" : "#f2f6fc"); document.documentElement.style.setProperty("--accent", next ? "#7B93FF" : "#4A6FA5"); }} className="w-[18px] h-[18px] rounded-full hover:scale-[1.15] active:scale-90 transition-all cursor-pointer" style={{ background: tc("#111", "#fff") }} />
-          </div>
+        {/* Profile */}
+        <div className="pt-3 pb-1 flex justify-center" style={{ borderTop: `1px solid ${tc("rgba(0,0,0,0.05)", "rgba(255,255,255,0.05)")}` }}>
           {user && (
-            <div className="flex items-center gap-2.5">
-              {user.image && <img src={user.image} alt="" className="w-7 h-7 rounded-full" />}
-              <div className="flex-1 min-w-0">
-                <p className="text-[12px] font-medium truncate" style={{ color: tc("#222", "#ddd") }}>{user.name}</p>
-                <p className="text-[10px] truncate" style={{ color: tc("#999", "#555") }}>{user.email}</p>
-              </div>
-              <button onClick={() => { fetch("/api/auth/sign-out", { method: "POST", credentials: "include" }).then(() => { localStorage.removeItem("inhumane-onboarded"); window.location.href = "/"; }); }} className="opacity-30 hover:opacity-70 transition-opacity">
-                <Logout03Icon size={14} />
-              </button>
+            <div className={`flex items-center w-full ${sidebarOpen ? 'gap-2.5 px-1' : 'justify-center'}`}>
+              {user.image ? <img src={user.image} alt="" className="w-8 h-8 rounded-full shadow-sm shrink-0" /> : <div className="w-8 h-8 rounded-full bg-black/10 dark:bg-white/10 shrink-0" />}
+              {sidebarOpen && (
+                <>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[14px] font-medium tracking-tight truncate" style={{ color: tc("#222", "#ddd") }}>{user.name}</p>
+                    <p className="text-[12px] truncate" style={{ color: tc("#999", "#555") }}>{user.email}</p>
+                  </div>
+                  <button onClick={() => { fetch("/api/auth/sign-out", { method: "POST", credentials: "include" }).then(() => { localStorage.removeItem("inhumane-onboarded"); window.location.href = "/"; }); }} className="opacity-30 hover:opacity-70 transition-opacity p-1">
+                    <Logout03Icon size={15} />
+                  </button>
+                </>
+              )}
             </div>
           )}
         </div>
       </aside>
 
-      <main className="flex-1 h-screen flex flex-col relative overflow-hidden z-[2] transition-all duration-200" style={{ marginLeft: sidebarOpen ? 260 : 0 }}>
-        {/* Sidebar toggle */}
-        {!sidebarOpen && <button onClick={() => setSidebarOpen(true)} className="absolute top-4 left-4 z-50 p-2 rounded-lg transition-opacity hover:opacity-70" style={{ color: tc("#555", "#aaa") }}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M3 12h18M3 6h18M3 18h18"/></svg></button>}
+      <main className="flex-1 h-screen flex flex-col relative overflow-hidden z-[2] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]" style={{ marginLeft: sidebarOpen ? 260 + 24 : 64 + 24 }}>
+        {/* Accent & Theme Toggles Top Right */}
+        <div className="absolute top-4 right-6 z-50 flex items-center gap-4 px-3 py-1.5 rounded-full" style={{ background: tc("rgba(255,255,255,0.5)", "rgba(18,20,28,0.5)"), backdropFilter: "blur(20px)", border: `1px solid ${tc("rgba(0,0,0,0.05)", "rgba(255,255,255,0.05)")}` }}>
+          <div className="flex items-center gap-2">
+            {tints.map(t => (
+              <button key={t.c} onClick={() => { document.documentElement.style.setProperty("--accent", t.c); document.documentElement.style.setProperty("--bg", t.bg); }} className="w-3.5 h-3.5 rounded-full hover:scale-125 active:scale-90 transition-all cursor-pointer shadow-sm" style={{ background: t.c }} />
+            ))}
+          </div>
+          <div className="w-[1px] h-3 opacity-20" style={{ background: tc("#000", "#fff") }} />
+          <button onClick={() => { const next = !isDark; setIsDark(next); document.documentElement.classList.toggle("dark", next); document.documentElement.style.setProperty("--bg", next ? "#000000" : "#f2f6fc"); document.documentElement.style.setProperty("--accent", next ? "#7B93FF" : "#4A6FA5"); }} className="w-3.5 h-3.5 rounded-full hover:scale-125 active:scale-90 transition-all cursor-pointer shadow-sm" style={{ background: tc("#111", "#fff") }} />
+        </div>
         {/* Expanded inbox overlay */}
         {showInbox && expandedInbox && <EmailInbox isDark={isDark} onClose={() => { setShowInbox(false); setExpandedInbox(false); }} expanded={true} onExpand={() => setExpandedInbox(false)} />}
 
@@ -394,11 +439,13 @@ export default function ChatPage() {
           <div className="flex-1 flex flex-col items-center justify-center px-8 pb-16">
             <div className="w-full max-w-[580px]" style={{ animation: "fadeIn 0.5s ease-out" }}>
               {/* Hero */}
-              <div className="mb-10">
-                <p className="text-[12px] font-medium uppercase tracking-[0.08em] mb-3" style={{ color: "var(--accent, #4A6FA5)" }}>Your AI operator</p>
-                <h2 className="text-[38px] font-semibold tracking-[-0.03em] leading-[1.15]" style={{ color: tc("#0a0a0a", "#f5f5f5") }}>
-                  How can I help you<br />get things done?
+              <div className="mb-10 text-center flex flex-col items-center">
+                <h2 className="text-[44px] font-semibold tracking-tight leading-[1.15]" style={{ color: tc("#111", "#fff") }}>
+                  Hello, <span className="bg-clip-text text-transparent" style={{ backgroundImage: `linear-gradient(135deg, var(--accent), ${tc("#111", "#fff")})` }}>{user?.name ? user.name.split(" ")[0] : "there"}</span>.
                 </h2>
+                <p className="text-[18px] font-medium tracking-tight mt-4" style={{ color: tc("#666", "#aaa") }}>
+                  {greetingMsg}
+                </p>
               </div>
 
               {/* Input Card */}
@@ -421,10 +468,10 @@ export default function ChatPage() {
               </form>
 
               {/* Chips */}
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2.5 justify-center mt-6">
                 {[{ label: "Read Inbox", icon: Mail01Icon, q: "Show my latest 5 emails" }, { label: "Schedule", icon: Calendar03Icon, q: "What's on my calendar today?" }, { label: "Compose", icon: PencilEdit01Icon, q: "Draft an email" }].map(chip => (
-                  <button key={chip.label} onClick={() => startNewChat(chip.q)} className="flex items-center gap-1.5 px-4 py-2 rounded-full text-[12px] font-medium transition-all hover:scale-[1.02] active:scale-[0.97]" style={{ background: tc("rgba(0,0,0,0.03)", "rgba(255,255,255,0.04)"), border: `1px solid ${tc("rgba(0,0,0,0.06)", "rgba(255,255,255,0.06)")}`, color: tc("#444", "#bbb") }}>
-                    <chip.icon size={13} className="opacity-50" />{chip.label}
+                  <button key={chip.label} onClick={() => startNewChat(chip.q)} className="flex items-center gap-2 px-4 py-2.5 rounded-full text-[13px] font-medium transition-all hover:scale-[1.02] active:scale-[0.97]" style={{ background: tc("rgba(0,0,0,0.03)", "rgba(255,255,255,0.04)"), border: `1px solid ${tc("rgba(0,0,0,0.05)", "rgba(255,255,255,0.06)")}`, color: tc("#444", "#bbb") }}>
+                    <chip.icon size={14} className="opacity-60" />{chip.label}
                   </button>
                 ))}
               </div>
@@ -437,18 +484,41 @@ export default function ChatPage() {
                 {messages.map(message => (
                   <div key={message.id} style={{ animation: "fadeIn 0.2s ease-out" }}>
                     {message.role === "user" ? (
-                      <div className="flex justify-end">
-                        <div className="max-w-[70%] rounded-[20px] rounded-br-[8px] px-4 py-2.5" style={{ background: tc("rgba(0,0,0,0.05)", "rgba(255,255,255,0.07)"), border: `1px solid ${tc("rgba(0,0,0,0.04)", "rgba(255,255,255,0.05)")}` }}>
-                          {message.parts.map((part, i) => part.type === "text" ? <p key={i} className="text-[13.5px] leading-[1.6] whitespace-pre-wrap" style={{ color: tc("#1a1a1a", "#f0f0f0") }}>{part.text}</p> : null)}
+                      <div className="flex justify-end mb-1">
+                        <div className="max-w-[75%] rounded-[20px] rounded-br-sm px-4 py-2.5 shadow-sm" style={{ background: tc("rgba(0,0,0,0.05)", "rgba(255,255,255,0.08)"), color: tc("#111", "#e5e5e5") }}>
+                          {(message.parts || [{ type: "text" as const, text: message.content }]).map((part, i) => part.type === "text" ? <p key={i} className="text-[15px] leading-relaxed tracking-tight whitespace-pre-wrap">{part.text}</p> : null)}
                         </div>
                       </div>
                     ) : (
-                      <div className="max-w-[85%]">
-                        {message.parts.map((part, i) => {
-                          if (part.type === "text") return <div key={i} className="text-[13.5px] leading-[1.8] whitespace-pre-wrap" style={{ color: tc("#333", "#ddd") }}>{renderMessageContent(part.text)}</div>;
-                          if (part.type.startsWith("tool-")) { const p = part as any; return (<div key={i} className="mt-1.5 inline-flex items-center gap-1.5 text-[10px] rounded-md px-2 py-1" style={{ background: tc("rgba(0,0,0,0.03)", "rgba(255,255,255,0.04)"), color: tc("#888", "#888") }}><span>⚡</span><span>{p.toolName || "Tool"}</span>{p.state === "result" && <span style={{ color: "var(--accent)" }}>✓</span>}{p.state === "call" && <span className="animate-pulse">…</span>}</div>); }
-                          return null;
-                        })}
+                      <div className="flex gap-3 max-w-[90%] mt-2 mb-2">
+                        <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-1 shadow-sm" style={{ background: tc("rgba(0,0,0,0.05)", "rgba(255,255,255,0.08)") }}>
+                          <span className="text-[10px] font-bold tracking-tight" style={{ color: tc("#555", "#aaa") }}>AI</span>
+                        </div>
+                        <div className="flex-1 min-w-0 flex flex-col items-start gap-2">
+                          {(message.parts || [{ type: "text" as const, text: message.content }]).map((part, i) => {
+                            if (part.type === "text") {
+                              const blocks = renderMessageParts(part.text);
+                              return blocks.map((b, bi) => {
+                                if (b.type === "text" && b.content?.trim()) {
+                                  return (
+                                    <div key={`${i}-${bi}`} className="rounded-[20px] rounded-tl-sm px-5 py-3.5 shadow-sm" style={{ background: tc("rgba(255,255,255,0.7)", "rgba(26,28,35,0.7)"), backdropFilter: "blur(20px)", border: `1px solid ${tc("rgba(0,0,0,0.04)", "rgba(255,255,255,0.04)")}` }}>
+                                      <div className="text-[15px] leading-relaxed tracking-tight whitespace-pre-wrap" style={{ color: tc("#1c1b1b", "#e0e0e0") }}>{b.content.trim()}</div>
+                                    </div>
+                                  );
+                                }
+                                if (b.type === "email-draft" || b.type === "email-action") {
+                                  return <div key={`${i}-${bi}`} className="w-full max-w-full"><EmailActionCard data={b.data} /></div>;
+                                }
+                                if (b.type === "calendar-event" || b.type === "calendar-action") {
+                                  return <div key={`${i}-${bi}`} className="w-full max-w-full"><CalendarActionCard data={b.data} /></div>;
+                                }
+                                return null;
+                              });
+                            }
+                            if (part.type.startsWith("tool-")) { const p = part as any; return (<div key={i} className="mt-1 inline-flex items-center gap-1.5 text-[11px] font-medium tracking-tight rounded-md px-2.5 py-1.5" style={{ background: tc("rgba(0,0,0,0.04)", "rgba(255,255,255,0.06)"), color: tc("#555", "#999") }}><span>⚡</span><span>{p.toolName || "Tool"}</span>{p.state === "result" && <span style={{ color: "var(--accent)" }}>✓</span>}{p.state === "call" && <span className="animate-pulse">…</span>}</div>); }
+                            return null;
+                          })}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -467,19 +537,25 @@ export default function ChatPage() {
               </div>
             </section>
 
-            <footer className="absolute bottom-0 left-0 w-full px-6 pb-5 pt-4 pointer-events-none z-40" style={{ background: `linear-gradient(to top, var(--bg) 60%, transparent)` }}>
+            <footer className="absolute bottom-0 left-0 w-full px-6 pb-6 pt-10 pointer-events-none z-40" style={{ background: `linear-gradient(to top, var(--bg) 50%, transparent)` }}>
               <div className="max-w-[680px] mx-auto pointer-events-auto">
-                <form onSubmit={handleSubmit} className="flex items-center gap-2 rounded-[20px] px-4 py-1.5" style={{ background: tc("rgba(255,255,255,0.6)", "rgba(18,20,28,0.7)"), backdropFilter: "blur(40px) saturate(1.5)", border: `1px solid ${tc("rgba(0,0,0,0.05)", "rgba(255,255,255,0.06)")}`, boxShadow: tc("0 4px 24px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.7)", "0 4px 24px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.03)") }}>
-                  <input
-                    value={input}
-                    onChange={e => setInput(e.target.value)}
-                    onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(e); } }}
-                    className="flex-1 bg-transparent text-[13.5px] outline-none py-2.5 px-1"
-                    style={{ color: tc("#111", "#e5e5e5") }}
-                    placeholder="Message Inhumane..."
-                    disabled={status !== "ready"}
-                  />
-                  <button type="submit" disabled={status !== "ready" || !input.trim()} className="w-8 h-8 rounded-full text-white flex items-center justify-center disabled:opacity-15 hover:scale-105 active:scale-95 transition-all text-[12px]" style={{ background: "var(--accent, #111)" }}>↑</button>
+                <form onSubmit={handleSubmit}>
+                  <div className="rounded-2xl p-3 transition-all" style={{ background: tc("rgba(255,255,255,0.75)", "rgba(26,28,35,0.75)"), backdropFilter: "blur(40px) saturate(1.5)", border: `1px solid ${tc("rgba(0,0,0,0.06)", "rgba(255,255,255,0.08)")}`, boxShadow: tc("0 8px 30px rgba(0,0,0,0.06)", "0 8px 30px rgba(0,0,0,0.3)") }}>
+                    <textarea
+                      value={input}
+                      onChange={e => setInput(e.target.value)}
+                      onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(e as any); } }}
+                      rows={2}
+                      className="w-full text-[15px] placeholder:opacity-40 outline-none resize-none bg-transparent leading-[1.6] tracking-tight px-1"
+                      style={{ color: tc("#1c1b1b", "#e5e5e5") }}
+                      placeholder="Message Inhumane..."
+                      disabled={status !== "ready"}
+                    />
+                    <div className="flex items-center justify-between mt-1 pt-2">
+                      <span className="text-[10px] font-medium tracking-wide px-1" style={{ color: tc("#bbb", "#666") }}>⏎ to send</span>
+                      <button type="submit" disabled={status !== "ready" || !input.trim()} className="w-8 h-8 rounded-full text-white flex items-center justify-center disabled:opacity-20 hover:scale-105 active:scale-95 transition-all text-[13px] font-bold shadow-sm" style={{ background: "var(--accent, #111)" }}>↑</button>
+                    </div>
+                  </div>
                 </form>
               </div>
             </footer>
@@ -489,6 +565,8 @@ export default function ChatPage() {
 
       <style jsx global>{`
         @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes mesh-flow { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+        @keyframes gemini-breathe { 0% { transform: scale(1) translateY(0); opacity: 0.5; } 100% { transform: scale(1.05) translateY(2vh); opacity: 0.8; } }
         :root { --accent: #4A6FA5; --bg: #f2f6fc; --fg-primary: #111; --fg-secondary: #777; }
         .dark { --fg-primary: #e5e5e5; --fg-secondary: #999; }
         body { background: var(--bg); -webkit-font-smoothing: antialiased; }

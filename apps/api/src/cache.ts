@@ -1,9 +1,11 @@
 import Redis from "ioredis";
 
 const redis = new Redis(process.env.REDIS_URL || "redis://localhost:6379", {
-  maxRetriesPerRequest: 3,
+  maxRetriesPerRequest: 1,
   lazyConnect: true,
-  retryStrategy: (times) => Math.min(times * 100, 3000),
+  enableOfflineQueue: false,
+  commandTimeout: 1000,
+  retryStrategy: (times) => Math.min(times * 100, 1000),
 });
 
 redis.on("error", () => {}); // Silently handle - cache is optional
@@ -27,13 +29,6 @@ export const cache = {
 
   async del(key: string): Promise<void> {
     try { await redis.del(key); } catch {}
-  },
-
-  async delPattern(pattern: string): Promise<void> {
-    try {
-      const keys = await redis.keys(pattern);
-      if (keys.length) await redis.del(...keys);
-    } catch {}
   },
 
   // Scoped helpers
