@@ -13,10 +13,12 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(target, 308);
   }
 
-  // Check for session cookie — Better Auth may use different names depending on
-  // whether crossSubDomainCookies is enabled or not.
+  // Check for session cookie — Better Auth prefixes cookie names with __Secure-
+  // when secure: true is set in defaultCookieAttributes.
   const hasSession =
+    request.cookies.get("__Secure-better-auth.session_token") ||
     request.cookies.get("better-auth.session_token") ||
+    request.cookies.get("__Secure-better-auth.session_token.cross-subdomain") ||
     request.cookies.get("better-auth.session_token.cross-subdomain");
 
   if (!hasSession) {
