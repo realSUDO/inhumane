@@ -206,6 +206,7 @@ export default function ChatPage() {
   const [showChat, setShowChat] = useState(false);
   const [isDark, setIsDark] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const [greetingMsg, setGreetingMsg] = useState("How can I help you get things done?");
@@ -345,8 +346,8 @@ export default function ChatPage() {
   };
 
   const tints = isDark
-    ? [{ c: "#7B93FF", bg: "#000000" }, { c: "#5DDCCC", bg: "#000000" }, { c: "#FF7BAA", bg: "#000000" }]
-    : [{ c: "#4A6FA5", bg: "#f2f6fc" }, { c: "#2D6A4F", bg: "#f0f8f4" }, { c: "#8B5CF6", bg: "#f5f2ff" }];
+    ? [{ c: "#7B93FF", bg: "#000000", fg: "#fff" }, { c: "#5DDCCC", bg: "#000000", fg: "#000" }, { c: "#FF7BAA", bg: "#000000", fg: "#fff" }]
+    : [{ c: "#4A6FA5", bg: "#f2f6fc", fg: "#fff" }, { c: "#2D6A4F", bg: "#f0f8f4", fg: "#fff" }, { c: "#8B5CF6", bg: "#f5f2ff", fg: "#fff" }];
 
   const tc = (light: string, dark: string) => isDark ? dark : light;
 
@@ -374,60 +375,84 @@ export default function ChatPage() {
       <div className="fixed inset-0 pointer-events-none z-[1]" style={{ opacity: tc("0.018", "0.025"), backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")` }} />
       <ConnectModal status={connectStatus} onConnect={openConnectPopup} />
 
-      <aside className="hidden md:flex flex-col fixed top-3 bottom-3 py-4 gap-4 z-50 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] rounded-2xl shadow-sm" style={{ width: sidebarOpen ? 260 : 64, left: 12, paddingLeft: sidebarOpen ? 16 : 8, paddingRight: sidebarOpen ? 16 : 8, overflow: "hidden", background: tc("#FAFAFA", "#131417"), border: `1px solid ${tc("rgba(0,0,0,0.06)", "rgba(255,255,255,0.06)")}` }}>
-        <div className={`px-1 py-0.5 flex items-center ${sidebarOpen ? 'justify-between' : 'justify-center'}`}>
-          {sidebarOpen && <h1 className="text-[20px] font-semibold tracking-tight" style={{ color: tc("#111", "#f0f0f0") }}>Inhumane</h1>}
-          <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-1.5 rounded-lg opacity-40 hover:opacity-80 transition-all hover:bg-black/5 dark:hover:bg-white/5 shrink-0" style={{ color: tc("#333", "#ccc") }}>
+      <aside className="hidden md:flex flex-col fixed top-3 bottom-3 py-4 gap-4 z-50 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] rounded-2xl shadow-sm" style={{ width: sidebarOpen ? 260 : 56, left: 12, paddingLeft: sidebarOpen ? 16 : 8, paddingRight: sidebarOpen ? 16 : 8, overflow: "hidden", background: sidebarOpen ? tc("#FAFAFA", "#131417") : "transparent", border: sidebarOpen ? `1px solid ${tc("rgba(0,0,0,0.06)", "rgba(255,255,255,0.06)")}` : "1px solid transparent" }}>
+        {/* Top Header */}
+        <div className={`px-1 py-0.5 flex items-center ${sidebarOpen ? 'justify-between' : 'justify-center'} shrink-0 transition-all duration-300`}>
+          <h1 className={`text-[20px] font-semibold tracking-tight transition-opacity duration-75 ${sidebarOpen ? 'opacity-100' : 'opacity-0 absolute pointer-events-none'}`} style={{ color: tc("#111", "#f0f0f0") }}>Inhumane</h1>
+          <button onClick={() => { setSidebarOpen(!sidebarOpen); if (sidebarOpen) setSearchQuery(""); }} className="p-1.5 rounded-lg opacity-40 hover:opacity-80 transition-all hover:bg-black/5 dark:hover:bg-white/5 shrink-0" style={{ color: tc("#333", "#ccc") }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M4 6h16M4 12h16M4 18h16" /></svg>
           </button>
         </div>
 
-        <button onClick={() => { setActiveThread(null); setShowChat(true); setMessages([]); }} className={`flex items-center w-full py-2.5 rounded-xl text-[14px] font-medium hover:opacity-90 active:scale-[0.97] transition-all shadow-sm ${sidebarOpen ? 'gap-2.5 px-4 justify-start' : 'justify-center'}`} style={{ background: "var(--accent, #111)", color: "#fff", opacity: 1 }}>
-          <PlusSignIcon size={16} className="shrink-0" /> {sidebarOpen && "New Thread"}
-        </button>
+        {/* New Thread Button */}
+        <div className={`shrink-0 flex transition-all duration-300 ${sidebarOpen ? 'px-1' : 'justify-center'}`}>
+          <button onClick={() => { setActiveThread(null); setShowChat(true); setMessages([]); setSearchQuery(""); }} className="flex items-center justify-center rounded-xl font-medium hover:opacity-90 active:scale-[0.97] transition-all duration-300 shadow-sm shrink-0" style={{ background: "var(--accent, #111)", color: "var(--accent-fg, #fff)", width: sidebarOpen ? "100%" : 40, height: 40 }}>
+            <PlusSignIcon size={sidebarOpen ? 16 : 18} className="shrink-0" />
+            <span className={`whitespace-nowrap transition-all duration-75 ${sidebarOpen ? 'opacity-100 ml-2 w-auto' : 'opacity-0 w-0 ml-0 overflow-hidden'}`}>New Thread</span>
+          </button>
+        </div>
 
-        <div className="flex-1 overflow-y-auto -mx-1 px-1 space-y-4" style={{ scrollbarWidth: "none" }}>
-          {groupThreadsByDate(threads).map(group => (
-            <div key={group.label} className={sidebarOpen ? "mb-4" : "mb-2"}>
-              {sidebarOpen && <p className="text-[10px] font-semibold uppercase tracking-[0.06em] px-2 mb-1.5" style={{ color: tc("#aaa", "#555") }}>{group.label}</p>}
-              {group.threads.map(t => (
-                <ThreadItem key={t.id} thread={t} active={activeThread === t.id} onSelect={() => setActiveThread(t.id)} onAction={handleThreadAction} collapsed={!sidebarOpen} isDark={isDark} />
-              ))}
+        {/* Middle Content (Search + Threads) */}
+        <div className="flex-1 relative">
+          <div className={`absolute inset-0 w-[228px] flex flex-col transition-opacity duration-75 ${sidebarOpen ? 'opacity-100 delay-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
+            <div className="relative flex items-center w-full mb-4 px-1 shrink-0">
+               <svg className="absolute left-4 opacity-40" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
+               <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search chats..." className="w-full bg-black/5 dark:bg-white/5 rounded-xl pl-9 pr-3 py-2.5 text-[13px] outline-none transition-all placeholder:text-black/30 dark:placeholder:text-white/30" style={{ color: tc("#111", "#fff") }} />
             </div>
-          ))}
+
+            <div className="flex-1 overflow-y-auto -mx-1 px-2 space-y-4" style={{ scrollbarWidth: "none" }}>
+              {groupThreadsByDate(threads.filter(t => t.title.toLowerCase().includes(searchQuery.toLowerCase()))).map(group => (
+                <div key={group.label} className="mb-4">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.06em] px-2 mb-1.5" style={{ color: tc("#aaa", "#555") }}>{group.label}</p>
+                  {group.threads.map(t => (
+                    <ThreadItem key={t.id} thread={t} active={activeThread === t.id} onSelect={() => setActiveThread(t.id)} onAction={handleThreadAction} isDark={isDark} />
+                  ))}
+                </div>
+              ))}
+              {threads.filter(t => t.title.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
+                <p className="text-center text-[12px] opacity-40 mt-10">No chats found</p>
+              )}
+            </div>
+          </div>
+          
+          <div className={`absolute top-0 left-0 right-0 flex justify-center transition-opacity duration-75 ${!sidebarOpen ? 'opacity-100 delay-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
+            <button onClick={() => setSidebarOpen(true)} className="flex items-center justify-center w-10 h-10 rounded-xl hover:bg-black/5 dark:hover:bg-white/5 transition-colors" style={{ color: tc("#555", "#aaa") }}>
+               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
+            </button>
+          </div>
         </div>
 
         {/* Profile */}
-        <div className="pt-3 pb-1 flex justify-center" style={{ borderTop: `1px solid ${tc("rgba(0,0,0,0.05)", "rgba(255,255,255,0.05)")}` }}>
+        <div className={`pt-3 pb-1 flex transition-all duration-300 ${sidebarOpen ? 'justify-start' : 'justify-center'}`} style={{ borderTop: sidebarOpen ? `1px solid ${tc("rgba(0,0,0,0.05)", "rgba(255,255,255,0.05)")}` : '1px solid transparent' }}>
           {user && (
-            <div className={`flex items-center w-full ${sidebarOpen ? 'gap-2.5 px-1' : 'justify-center'}`}>
-              {user.image ? <img src={user.image} alt="" className="w-8 h-8 rounded-full shadow-sm shrink-0" /> : <div className="w-8 h-8 rounded-full bg-black/10 dark:bg-white/10 shrink-0" />}
-              {sidebarOpen && (
-                <>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[14px] font-medium tracking-tight truncate" style={{ color: tc("#222", "#ddd") }}>{user.name}</p>
-                    <p className="text-[12px] truncate" style={{ color: tc("#999", "#555") }}>{user.email}</p>
-                  </div>
-                  <button onClick={() => { fetch("/api/auth/sign-out", { method: "POST", credentials: "include" }).then(() => { localStorage.removeItem("inhumane-onboarded"); window.location.href = "/"; }); }} className="opacity-30 hover:opacity-70 transition-opacity p-1">
-                    <Logout03Icon size={15} />
-                  </button>
-                </>
-              )}
+            <div className="flex items-center w-full px-1 overflow-hidden">
+              <div className="shrink-0 relative flex justify-center w-8">
+                 {user.image ? <img src={user.image} alt="" className="w-8 h-8 rounded-full shadow-sm" /> : <div className="w-8 h-8 rounded-full bg-black/10 dark:bg-white/10" />}
+              </div>
+              <div className={`flex items-center flex-1 transition-opacity duration-75 ${sidebarOpen ? 'opacity-100 ml-2.5 delay-100' : 'opacity-0 absolute pointer-events-none'}`}>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[14px] font-medium tracking-tight truncate" style={{ color: tc("#222", "#ddd") }}>{user.name}</p>
+                  <p className="text-[12px] truncate" style={{ color: tc("#999", "#555") }}>{user.email}</p>
+                </div>
+                <button onClick={() => { fetch("/api/auth/sign-out", { method: "POST", credentials: "include" }).then(() => { localStorage.removeItem("inhumane-onboarded"); window.location.href = "/"; }); }} className="opacity-30 hover:opacity-70 transition-opacity p-1">
+                  <Logout03Icon size={15} />
+                </button>
+              </div>
             </div>
           )}
         </div>
       </aside>
 
-      <main className="flex-1 h-screen flex flex-col relative overflow-hidden z-[2] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]" style={{ marginLeft: sidebarOpen ? 260 + 24 : 64 + 24 }}>
+      <main className="flex-1 h-screen flex flex-col relative overflow-hidden z-[2] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]" style={{ marginLeft: sidebarOpen ? 260 + 24 : 56 + 24 }}>
         {/* Accent & Theme Toggles Top Right */}
         <div className="absolute top-4 right-6 z-50 flex items-center gap-4 px-3 py-1.5 rounded-full" style={{ background: tc("rgba(255,255,255,0.5)", "rgba(18,20,28,0.5)"), backdropFilter: "blur(20px)", border: `1px solid ${tc("rgba(0,0,0,0.05)", "rgba(255,255,255,0.05)")}` }}>
           <div className="flex items-center gap-2">
             {tints.map(t => (
-              <button key={t.c} onClick={() => { document.documentElement.style.setProperty("--accent", t.c); document.documentElement.style.setProperty("--bg", t.bg); }} className="w-3.5 h-3.5 rounded-full hover:scale-125 active:scale-90 transition-all cursor-pointer shadow-sm" style={{ background: t.c }} />
+              <button key={t.c} onClick={() => { document.documentElement.style.setProperty("--accent", t.c); document.documentElement.style.setProperty("--bg", t.bg); document.documentElement.style.setProperty("--accent-fg", t.fg); }} className="w-3.5 h-3.5 rounded-full hover:scale-125 active:scale-90 transition-all cursor-pointer shadow-sm" style={{ background: t.c }} />
             ))}
           </div>
           <div className="w-[1px] h-3 opacity-20" style={{ background: tc("#000", "#fff") }} />
-          <button onClick={() => { const next = !isDark; setIsDark(next); document.documentElement.classList.toggle("dark", next); document.documentElement.style.setProperty("--bg", next ? "#000000" : "#f2f6fc"); document.documentElement.style.setProperty("--accent", next ? "#7B93FF" : "#4A6FA5"); }} className="w-3.5 h-3.5 rounded-full hover:scale-125 active:scale-90 transition-all cursor-pointer shadow-sm" style={{ background: tc("#111", "#fff") }} />
+          <button onClick={() => { const next = !isDark; setIsDark(next); document.documentElement.classList.toggle("dark", next); document.documentElement.style.setProperty("--bg", next ? "#000000" : "#f2f6fc"); document.documentElement.style.setProperty("--accent", next ? "#7B93FF" : "#4A6FA5"); document.documentElement.style.setProperty("--accent-fg", "#fff"); }} className="w-3.5 h-3.5 rounded-full hover:scale-125 active:scale-90 transition-all cursor-pointer shadow-sm" style={{ background: tc("#111", "#fff") }} />
         </div>
         {/* Expanded inbox overlay */}
         {showInbox && expandedInbox && <EmailInbox isDark={isDark} onClose={() => { setShowInbox(false); setExpandedInbox(false); }} expanded={true} onExpand={() => setExpandedInbox(false)} />}
@@ -553,7 +578,7 @@ export default function ChatPage() {
                     />
                     <div className="flex items-center justify-between mt-1 pt-2">
                       <span className="text-[10px] font-medium tracking-wide px-1" style={{ color: tc("#bbb", "#666") }}>⏎ to send</span>
-                      <button type="submit" disabled={status !== "ready" || !input.trim()} className="w-8 h-8 rounded-full text-white flex items-center justify-center disabled:opacity-20 hover:scale-105 active:scale-95 transition-all text-[13px] font-bold shadow-sm" style={{ background: "var(--accent, #111)" }}>↑</button>
+                      <button type="submit" disabled={status !== "ready" || !input.trim()} className="w-8 h-8 rounded-full flex items-center justify-center disabled:opacity-20 hover:scale-105 active:scale-95 transition-all text-[13px] font-bold shadow-sm" style={{ background: "var(--accent, #111)", color: "var(--accent-fg, #fff)" }}>↑</button>
                     </div>
                   </div>
                 </form>
@@ -567,7 +592,7 @@ export default function ChatPage() {
         @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes mesh-flow { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
         @keyframes gemini-breathe { 0% { transform: scale(1) translateY(0); opacity: 0.5; } 100% { transform: scale(1.05) translateY(2vh); opacity: 0.8; } }
-        :root { --accent: #4A6FA5; --bg: #f2f6fc; --fg-primary: #111; --fg-secondary: #777; }
+        :root { --accent: #4A6FA5; --accent-fg: #fff; --bg: #f2f6fc; --fg-primary: #111; --fg-secondary: #777; }
         .dark { --fg-primary: #e5e5e5; --fg-secondary: #999; }
         body { background: var(--bg); -webkit-font-smoothing: antialiased; }
         * { transition: background-color 0.4s ease, border-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease; }
