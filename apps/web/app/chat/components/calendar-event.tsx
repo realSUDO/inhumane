@@ -40,7 +40,7 @@ function EmailTagInput({ isDark }: { isDark: boolean }) {
   );
 }
 
-export function CalendarEvent({ isDark, onClose, onExpand, prefill }: { isDark: boolean; onClose: () => void; onExpand?: () => void; prefill?: { summary?: string; start?: string; end?: string; description?: string; guests?: string[] } }) {
+export function CalendarEvent({ isDark, onClose, onExpand, prefill, onSuccess }: { isDark: boolean; onClose: () => void; onExpand?: () => void; prefill?: { summary?: string; start?: string; end?: string; description?: string; guests?: string[] }; onSuccess?: () => void }) {
   const tc = (l: string, d: string) => isDark ? d : l;
   const [title, setTitle] = useState(prefill?.summary || "");
   const [date, setDate] = useState(prefill?.start ? prefill.start.split("T")[0] : "");
@@ -56,7 +56,7 @@ export function CalendarEvent({ isDark, onClose, onExpand, prefill }: { isDark: 
     const start = date && startTime ? new Date(`${date}T${startTime}`).toISOString() : new Date().toISOString();
     const end = date && endTime ? new Date(`${date}T${endTime}`).toISOString() : new Date(Date.now() + 3600000).toISOString();
     const res = await fetch("/api/calendar/events", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ summary: title, description: desc, start: { dateTime: start }, end: { dateTime: end } }) });
-    if (res.ok) setSaved(true);
+    if (res.ok) { setSaved(true); onSuccess?.(); }
     setSaving(false);
   };
 

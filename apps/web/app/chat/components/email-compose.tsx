@@ -44,7 +44,7 @@ function EmailTagInput({ isDark, initial }: { isDark: boolean; initial?: string[
   );
 }
 
-export function EmailCompose({ isDark, onClose, prefill }: { isDark: boolean; onClose: () => void; prefill?: { to?: string; subject?: string; body?: string } }) {
+export function EmailCompose({ isDark, onClose, prefill, onSuccess }: { isDark: boolean; onClose: () => void; prefill?: { to?: string; subject?: string; body?: string }; onSuccess?: () => void }) {
   const tc = (l: string, d: string) => isDark ? d : l;
   const [subject, setSubject] = useState(prefill?.subject || "");
   const [body, setBody] = useState(prefill?.body || "");
@@ -55,7 +55,7 @@ export function EmailCompose({ isDark, onClose, prefill }: { isDark: boolean; on
   const handleSend = async () => {
     setSending(true);
     const res = await fetch("/api/send-email", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ to: toRef.current[0] || prefill?.to, subject, body }) });
-    if (res.ok) setSent(true);
+    if (res.ok) { setSent(true); onSuccess?.(); }
     setSending(false);
   };
 

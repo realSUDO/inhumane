@@ -65,14 +65,14 @@ function ThreadMenu({ thread, onAction, isRenaming, setRenaming }: { thread: Thr
 }
 
 
-function EmailActionCard({ data }: { data: { to?: string; subject?: string; body?: string } }) {
+function EmailActionCard({ data, onSuccess }: { data: { to?: string; subject?: string; body?: string }; onSuccess?: () => void }) {
   const dark = typeof document !== "undefined" && document.documentElement.classList.contains("dark");
-  return <EmailCompose isDark={dark} onClose={() => { }} prefill={data} />;
+  return <EmailCompose isDark={dark} onClose={() => { }} prefill={data} onSuccess={onSuccess} />;
 }
 
-function CalendarActionCard({ data }: { data: { summary?: string; start?: string; end?: string; description?: string; guests?: string[] } }) {
+function CalendarActionCard({ data, onSuccess }: { data: { summary?: string; start?: string; end?: string; description?: string; guests?: string[] }; onSuccess?: () => void }) {
   const dark = typeof document !== "undefined" && document.documentElement.classList.contains("dark");
-  return <CalendarEvent isDark={dark} onClose={() => { }} prefill={data} />;
+  return <CalendarEvent isDark={dark} onClose={() => { }} prefill={data} onSuccess={onSuccess} />;
 }
 
 function renderMessageParts(text: string) {
@@ -231,7 +231,7 @@ export default function ChatPage() {
     body: () => ({ threadId: activeThreadRef.current }),
   }), []);
 
-  const { messages, sendMessage, status, setMessages, append } = useChat({ transport });
+  const { messages, sendMessage, status, setMessages } = useChat({ transport });
 
   useEffect(() => {
     fetch("/api/threads", { credentials: "include" }).then(r => r.json()).then(setThreads).catch(() => { });
@@ -535,10 +535,10 @@ export default function ChatPage() {
                                   );
                                 }
                                 if (b.type === "email-draft" || b.type === "email-action") {
-                                  return <div key={`${i}-${bi}`} className="w-full max-w-full"><EmailActionCard data={b.data} onSuccess={() => append({ role: 'user', content: '[System] Action completed successfully. Proceed to the next task.' })} /></div>;
+                                  return <div key={`${i}-${bi}`} className="w-full max-w-full"><EmailActionCard data={b.data} onSuccess={() => sendMessage({ text: '[System] Action completed successfully. Proceed to the next task.' })} /></div>;
                                 }
                                 if (b.type === "calendar-event" || b.type === "calendar-action") {
-                                  return <div key={`${i}-${bi}`} className="w-full max-w-full"><CalendarActionCard data={b.data} onSuccess={() => append({ role: 'user', content: '[System] Action completed successfully. Proceed to the next task.' })} /></div>;
+                                  return <div key={`${i}-${bi}`} className="w-full max-w-full"><CalendarActionCard data={b.data} onSuccess={() => sendMessage({ text: '[System] Action completed successfully. Proceed to the next task.' })} /></div>;
                                 }
                                 return null;
                               });

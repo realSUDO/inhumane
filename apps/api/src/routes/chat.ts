@@ -6,9 +6,11 @@ import { auth } from "@repo/auth";
 import { fromNodeHeaders } from "better-auth/node";
 import { Pool } from "pg";
 import { z } from "zod";
+import Redis from "ioredis";
 
 export const chatRouter = Router();
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const redis = new Redis(process.env.REDIS_URL || "redis://localhost:6379", { maxRetriesPerRequest: 3, lazyConnect: true });
 
 // Fast model (Groq) — routing + short conversational replies
 const fast = createOpenAI({
@@ -20,7 +22,9 @@ const fast = createOpenAI({
 const writer = createOpenAI({
   apiKey: process.env.LLM_API_KEY,
   baseURL: process.env.LLM_BASE_URL || "https://api.openai.com/v1",
-}// ─── ROUTER ───
+});
+
+// ─── ROUTER ───
 const ROUTER_PROMPT = `You are a message classifier. Read the FULL conversation and classify the user's LAST message.
 
 Output EXACTLY one JSON object: {"intents":["LABEL1", "LABEL2"], "sufficient":true/false, "extractedEmails": ["any_spelled_out_emails"]}
@@ -91,8 +95,6 @@ run_script: const list = await corsair.gmail.api.messages.list({ maxResults: 5 }
 
 # READ CALENDAR
 run_script: const res = await corsair.googlecalendar.api.events.list({ calendarId: 'primary', timeMin: new Date().toISOString(), maxResults: 5, singleEvents: true, orderBy: 'startTime' }); return res.items?.map(e => ({ title: e.summary, start: e.start?.dateTime || e.start?.date, end: e.end?.dateTime || e.end?.date, link: e.htmlLink }));
-
-Present results as a clean list. ✓ after done.`;ue, orderBy: "startTime" });
 
 Present results as a clean list. ✓ after done.`;
 
@@ -170,7 +172,8 @@ chatRouter.post("/", async (req, res) => {
 
     // If the last message is a simulated tool result, we are in the middle of an agentic loop.
     // Skip the router and go directly back to the writer model!
-    if (lastMsg.role === "user" && lastMsg.content === "[System] Action completed successfully. Proceed to the next task.") {
+    const lastMsgText = lastMsg.parts?.find((p: any) => p.type === "text")?.text || lastMsg.content || "";
+    if (lastMsg.role === "user" && lastMsgText === "[System] Action completed successfully. Proceed to the next task.") {
       const client = await getMcpClient(session.user.id);
       const mcpTools = await client.tools();
       const result = streamText({
