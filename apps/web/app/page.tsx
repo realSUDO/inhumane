@@ -14,7 +14,7 @@ const THEMES = [
 ];
 
 export default function LandingPage() {
-  const [activeTheme, setActiveTheme] = useState(THEMES[0]);
+  const [activeTheme, setActiveTheme] = useState(THEMES[0]!);
   const [isDark, setIsDark] = useState(false);
 
   // Sync initial dark mode from document
