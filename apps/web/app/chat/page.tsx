@@ -103,22 +103,67 @@ function EmailDraftCard({ to, subject, body }: { to: string; subject: string; bo
   );
 }
 
+function CalendarEventCard({ summary, start, end, description, location }: { summary: string; start: string; end: string; description?: string; location?: string }) {
+  const [scheduling, setScheduling] = useState(false);
+  const [scheduled, setScheduled] = useState(false);
+
+  const handleSchedule = async () => {
+    setScheduling(true);
+    const res = await fetch("/api/calendar/events", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ summary, start: { dateTime: new Date(start).toISOString() }, end: { dateTime: new Date(end).toISOString() }, description, location }),
+    });
+    if (res.ok) setScheduled(true);
+    setScheduling(false);
+  };
+
+  const fmtTime = (s: string) => { try { return new Date(s).toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }); } catch { return s; } };
+
+  if (scheduled) return (
+    <div className="mt-3 px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2">
+      <span className="text-[14px]">✓</span>
+      <span className="text-xs text-emerald-700">Event &quot;{summary}&quot; scheduled</span>
+    </div>
+  );
+
+  return (
+    <div className="mt-3 max-w-[420px] rounded-xl overflow-hidden border border-[#dadce0] shadow-lg bg-white">
+      <div className="h-1.5" style={{ background: "#4285f4" }} />
+      <div className="px-4 py-3">
+        <p className="text-[15px] font-medium text-[#1a1a2e]">{summary}</p>
+        <p className="text-[12px] text-[#5f6368] mt-1">{fmtTime(start)} – {fmtTime(end)}</p>
+        {location && <p className="text-[12px] text-[#5f6368] mt-1">📍 {location}</p>}
+        {description && <p className="text-[12px] text-[#5f6368] mt-2">{description}</p>}
+      </div>
+      <div className="px-4 py-2 border-t border-[#e8e8ec] flex items-center gap-3">
+        <button onClick={handleSchedule} disabled={scheduling} className="px-5 py-[7px] bg-[#1a73e8] text-white text-[13px] font-medium rounded-full hover:bg-[#1557b0] active:scale-[0.97] transition-all disabled:opacity-50">
+          {scheduling ? "Scheduling..." : "Schedule"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function renderMessageContent(text: string) {
-  // Parse email-draft blocks
-  const draftRegex = /```email-draft\n([\s\S]*?)\n```/g;
+  // Parse email-draft and calendar-event blocks
+  const blockRegex = /```(email-draft|calendar-event)\n([\s\S]*?)\n```/g;
   const parts: React.ReactNode[] = [];
   let lastIndex = 0;
   let match;
 
-  while ((match = draftRegex.exec(text)) !== null) {
-    // Text before the draft
+  while ((match = blockRegex.exec(text)) !== null) {
     if (match.index > lastIndex) {
       parts.push(<span key={lastIndex}>{text.slice(lastIndex, match.index)}</span>);
     }
-    // Parse the draft JSON
     try {
-      const draft = JSON.parse(match[1]!);
-      parts.push(<EmailDraftCard key={match.index} to={draft.to} subject={draft.subject} body={draft.body} />);
+      const data = JSON.parse(match[2]!);
+      if (match[1] === "email-draft") {
+        parts.push(<EmailDraftCard key={match.index} to={data.to} subject={data.subject} body={data.body} />);
+      } else {
+        parts.push(<CalendarEventCard key={match.index} summary={data.summary} start={data.start} end={data.end} description={data.description} location={data.location} />);
+      }
     } catch {
       parts.push(<span key={match.index}>{match[0]}</span>);
     }

@@ -65,14 +65,29 @@ Rules:
 {"to":"email@example.com","subject":"Subject line","body":"Full email body here"}
 \`\`\``;
 
+// ─── CALENDAR WRITER ───
+const CALENDAR_PROMPT = `You are Inhumane — a calendar scheduling assistant.
+
+Given the conversation context, create the calendar event NOW. Do not ask questions — you have enough info.
+
+Rules:
+- Parse the date/time from conversation. If no time given, default to 10:00 AM, 1 hour duration.
+- If no date given, assume today or next occurrence of the day mentioned.
+- Use ISO 8601 format for start/end times.
+- Output ONLY the event block, no other text before or after:
+
+\`\`\`calendar-event
+{"summary":"Event title","start":"2024-01-15T10:00:00","end":"2024-01-15T11:00:00","description":"Optional description","location":"Optional location"}
+\`\`\``;
+
 // ─── TOOL EXECUTION ───
 const TOOL_PROMPT = `You are Inhumane. Use run_script to execute operations. Be brief with results.
 
 # READ EMAILS
 run_script: const list = await corsair.gmail.api.messages.list({ maxResults: 5 }); const results = []; for (const m of (list.messages || [])) { const full = await corsair.gmail.api.messages.get({ id: m.id }); results.push({ id: full.id, snippet: full.snippet, from: (full.payload?.headers || []).find(h => h.name === "From")?.value, subject: (full.payload?.headers || []).find(h => h.name === "Subject")?.value, date: (full.payload?.headers || []).find(h => h.name === "Date")?.value }); } return results;
 
-# CALENDAR
-run_script: return await corsair.googlecalendar.api.events.list({});
+# CALENDAR READ
+run_script: return await corsair.googlecalendar.api.events.getMany({ timeMin: new Date().toISOString(), timeMax: new Date(Date.now()+7*86400000).toISOString(), singleEvents: true, orderBy: "startTime" });
 
 Present results as a clean list. ✓ after done.`;
 
@@ -186,7 +201,7 @@ chatRouter.post("/", async (req, res) => {
     if (intent === "CALENDAR_CREATE") {
       const result = streamText({
         model: writer(process.env.LLM_MODEL || "gpt-4.1-mini"),
-        system: WRITER_PROMPT,
+        system: CALENDAR_PROMPT,
         messages: modelMessages,
       });
       await streamToResponse(result, res, threadId);
