@@ -116,11 +116,13 @@ function ThreadItem({ thread, active, onSelect, onAction }: { thread: Thread; ac
   );
 
   return (
-    <div className={`group flex items-center rounded-lg transition-all duration-150 ${active ? "bg-[--thread-active]" : "hover:bg-[--thread-hover]"}`}
-      style={{ ["--thread-active" as any]: undefined, backgroundColor: active ? "rgba(128,128,128,0.08)" : undefined }}
+    <div className="group flex items-center rounded-lg transition-all duration-100"
+      style={{ backgroundColor: active ? "rgba(128,128,128,0.1)" : undefined }}
+      onMouseEnter={e => { if (!active) e.currentTarget.style.backgroundColor = "rgba(128,128,128,0.07)"; }}
+      onMouseLeave={e => { if (!active) e.currentTarget.style.backgroundColor = ""; }}
       onContextMenu={(e) => { e.preventDefault(); setRenaming(false); const menu = e.currentTarget.querySelector("[data-menu-trigger]") as HTMLElement; menu?.click(); }}>
-      <button onClick={onSelect} className={`flex-1 flex items-center gap-2 px-3 py-2.5 text-left text-[13px] truncate font-normal ${active ? "font-medium" : ""}`} style={{ color: active ? "var(--fg-primary, #111)" : "var(--fg-secondary, #777)" }}>
-        {thread.pinned && <PinIcon size={10} className="shrink-0 opacity-40" />}
+      <button onClick={onSelect} className="flex-1 flex items-center gap-2 px-3 py-2 text-left text-[12.5px] truncate" style={{ color: active ? "var(--fg-primary, #111)" : "var(--fg-secondary, #777)", fontWeight: active ? 500 : 400 }}>
+        {thread.pinned && <PinIcon size={9} className="shrink-0 opacity-30" />}
         <span className="truncate">{thread.title}</span>
       </button>
       <div className="hidden group-hover:block pr-1">
@@ -192,6 +194,7 @@ export default function ChatPage() {
   const [user, setUser] = useState<User | null>(null);
   const [showChat, setShowChat] = useState(false);
   const [isDark, setIsDark] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Stable transport - threadId passed via body dynamically
@@ -316,13 +319,26 @@ export default function ChatPage() {
   const tc = (light: string, dark: string) => isDark ? dark : light;
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: "var(--bg)", fontFamily: "'Inter', -apple-system, sans-serif", color: tc("#1c1b1b", "#e0e0e0") }}>
+    <div className="flex h-screen overflow-hidden relative" style={{ background: "var(--bg)", fontFamily: "'Inter', -apple-system, sans-serif", color: tc("#1c1b1b", "#e0e0e0") }}>
+      {/* Ambient background */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+        {isDark ? (<>
+          <div className="absolute -top-[20%] -right-[10%] w-[50vw] h-[50vw] rounded-full" style={{ background: `radial-gradient(circle, var(--accent, #4A6FA5), transparent 65%)`, opacity: 0.15, filter: "blur(100px)" }} />
+          <div className="absolute -bottom-[15%] -left-[10%] w-[40vw] h-[40vw] rounded-full" style={{ background: `radial-gradient(circle, var(--accent, #4A6FA5), transparent 65%)`, opacity: 0.1, filter: "blur(120px)" }} />
+        </>) : (
+          <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, color-mix(in srgb, var(--accent, #4A6FA5) 4%, transparent) 0%, transparent 50%, color-mix(in srgb, var(--accent, #4A6FA5) 3%, transparent) 100%)` }} />
+        )}
+      </div>
+      {/* Noise */}
+      <div className="fixed inset-0 pointer-events-none z-[1]" style={{ opacity: tc("0.018", "0.025"), backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")` }} />
       <ConnectModal status={connectStatus} onConnect={openConnectPopup} />
 
-      <aside className="hidden md:flex flex-col h-full w-[270px] fixed left-0 top-0 p-5 gap-5 z-50" style={{ background: tc("rgba(255,255,255,0.7)", "rgba(12,14,20,0.9)"), backdropFilter: "blur(20px)", borderRight: `1px solid ${tc("rgba(0,0,0,0.05)", "rgba(255,255,255,0.05)")}` }}>
-        <div className="px-1">
-          <h1 className="text-[22px] font-semibold tracking-[-0.02em]" style={{ color: tc("#111", "#f0f0f0") }}>Inhumane</h1>
-          <p className="text-[10px] uppercase tracking-[0.08em] font-medium mt-0.5" style={{ color: tc("#999", "#555") }}>Workspace</p>
+      <aside className="hidden md:flex flex-col h-full fixed left-0 top-0 p-4 gap-4 z-50 transition-all duration-200" style={{ width: sidebarOpen ? 260 : 0, padding: sidebarOpen ? 16 : 0, overflow: "hidden", background: tc("rgba(255,255,255,0.5)", "rgba(10,12,18,0.7)"), backdropFilter: "blur(50px) saturate(1.6)", borderRight: sidebarOpen ? `1px solid ${tc("rgba(0,0,0,0.04)", "rgba(255,255,255,0.04)")}` : "none" }}>
+        <div className="px-1 py-0.5 flex items-center justify-between">
+          <h1 className="text-[18px] font-semibold tracking-[-0.03em]" style={{ color: tc("#111", "#f0f0f0") }}>Inhumane</h1>
+          <button onClick={() => setSidebarOpen(false)} className="p-1.5 rounded-lg opacity-40 hover:opacity-80 transition-opacity" style={{ color: tc("#333", "#ccc") }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M11 19l-7-7 7-7M18 19l-7-7 7-7"/></svg>
+          </button>
         </div>
 
         <button onClick={() => { setActiveThread(null); setShowChat(true); setMessages([]); }} className="flex items-center gap-2.5 w-full px-4 py-3 rounded-xl text-[13px] font-medium hover:opacity-90 active:scale-[0.97] transition-all" style={{ background: "var(--accent, #111)", color: "#fff", opacity: 1 }}>
@@ -365,7 +381,9 @@ export default function ChatPage() {
         </div>
       </aside>
 
-      <main className="md:ml-[270px] flex-1 h-screen flex flex-col relative overflow-hidden">
+      <main className="flex-1 h-screen flex flex-col relative overflow-hidden z-[2] transition-all duration-200" style={{ marginLeft: sidebarOpen ? 260 : 0 }}>
+        {/* Sidebar toggle */}
+        {!sidebarOpen && <button onClick={() => setSidebarOpen(true)} className="absolute top-4 left-4 z-50 p-2 rounded-lg transition-opacity hover:opacity-70" style={{ color: tc("#555", "#aaa") }}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M3 12h18M3 6h18M3 18h18"/></svg></button>}
         {/* Expanded inbox overlay */}
         {showInbox && expandedInbox && <EmailInbox isDark={isDark} onClose={() => { setShowInbox(false); setExpandedInbox(false); }} expanded={true} onExpand={() => setExpandedInbox(false)} />}
 
@@ -417,39 +435,29 @@ export default function ChatPage() {
             <section className="flex-1 overflow-y-auto px-8 pt-8 pb-40" style={{ scrollbarWidth: "none" }}>
               <div className="max-w-[680px] mx-auto flex flex-col gap-7">
                 {messages.map(message => (
-                  <div key={message.id} style={{ animation: "fadeIn 0.25s ease-out" }}>
+                  <div key={message.id} style={{ animation: "fadeIn 0.2s ease-out" }}>
                     {message.role === "user" ? (
                       <div className="flex justify-end">
-                        <div className="max-w-[70%] rounded-[18px] rounded-br-[6px] px-4 py-2.5" style={{ background: "var(--accent, #111)", color: "#fff" }}>
-                          {message.parts.map((part, i) => part.type === "text" ? <p key={i} className="text-[13.5px] leading-[1.6] whitespace-pre-wrap">{part.text}</p> : null)}
+                        <div className="max-w-[70%] rounded-[20px] rounded-br-[8px] px-4 py-2.5" style={{ background: tc("rgba(0,0,0,0.05)", "rgba(255,255,255,0.07)"), border: `1px solid ${tc("rgba(0,0,0,0.04)", "rgba(255,255,255,0.05)")}` }}>
+                          {message.parts.map((part, i) => part.type === "text" ? <p key={i} className="text-[13.5px] leading-[1.6] whitespace-pre-wrap" style={{ color: tc("#1a1a1a", "#f0f0f0") }}>{part.text}</p> : null)}
                         </div>
                       </div>
                     ) : (
-                      <div className="flex gap-2.5">
-                        <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ background: tc("rgba(0,0,0,0.05)", "rgba(255,255,255,0.06)") }}>
-                          <span className="text-[8px] font-bold tracking-tight" style={{ color: tc("#777", "#999") }}>AI</span>
-                        </div>
-                        <div className="flex-1 min-w-0 -mt-0.5">
-                          {message.parts.map((part, i) => {
-                            if (part.type === "text") return <div key={i} className="text-[13.5px] leading-[1.75] whitespace-pre-wrap" style={{ color: tc("#2a2a2a", "#ddd") }}>{renderMessageContent(part.text)}</div>;
-                            if (part.type.startsWith("tool-")) { const p = part as any; return (<div key={i} className="mt-1.5 inline-flex items-center gap-1.5 text-[10px] rounded-md px-2 py-1" style={{ background: tc("rgba(0,0,0,0.03)", "rgba(255,255,255,0.04)"), color: tc("#888", "#888") }}><span>⚡</span><span>{p.toolName || "Tool"}</span>{p.state === "result" && <span style={{ color: "var(--accent)" }}>✓</span>}{p.state === "call" && <span className="animate-pulse">…</span>}</div>); }
-                            return null;
-                          })}
-                        </div>
+                      <div className="max-w-[85%]">
+                        {message.parts.map((part, i) => {
+                          if (part.type === "text") return <div key={i} className="text-[13.5px] leading-[1.8] whitespace-pre-wrap" style={{ color: tc("#333", "#ddd") }}>{renderMessageContent(part.text)}</div>;
+                          if (part.type.startsWith("tool-")) { const p = part as any; return (<div key={i} className="mt-1.5 inline-flex items-center gap-1.5 text-[10px] rounded-md px-2 py-1" style={{ background: tc("rgba(0,0,0,0.03)", "rgba(255,255,255,0.04)"), color: tc("#888", "#888") }}><span>⚡</span><span>{p.toolName || "Tool"}</span>{p.state === "result" && <span style={{ color: "var(--accent)" }}>✓</span>}{p.state === "call" && <span className="animate-pulse">…</span>}</div>); }
+                          return null;
+                        })}
                       </div>
                     )}
                   </div>
                 ))}
                 {(status === "submitted" || status === "streaming") && messages[messages.length - 1]?.role !== "assistant" && (
-                  <div className="flex gap-2.5" style={{ animation: "fadeIn 0.2s ease-out" }}>
-                    <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0" style={{ background: tc("rgba(0,0,0,0.05)", "rgba(255,255,255,0.06)") }}>
-                      <span className="text-[8px] font-bold tracking-tight" style={{ color: tc("#777", "#999") }}>AI</span>
-                    </div>
-                    <div className="flex items-center gap-1 pt-2">
-                      <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "var(--accent, #999)", animationDelay: "0ms", opacity: 0.6 }} />
-                      <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "var(--accent, #999)", animationDelay: "150ms", opacity: 0.6 }} />
-                      <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "var(--accent, #999)", animationDelay: "300ms", opacity: 0.6 }} />
-                    </div>
+                  <div className="flex items-center gap-1.5 py-2" style={{ animation: "fadeIn 0.2s ease-out" }}>
+                    <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "var(--accent, #999)", animationDelay: "0ms", opacity: 0.5 }} />
+                    <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "var(--accent, #999)", animationDelay: "150ms", opacity: 0.5 }} />
+                    <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "var(--accent, #999)", animationDelay: "300ms", opacity: 0.5 }} />
                   </div>
                 )}
                 {showEmailModal && <EmailCompose isDark={isDark} onClose={() => setShowEmailModal(false)} />}
@@ -461,7 +469,7 @@ export default function ChatPage() {
 
             <footer className="absolute bottom-0 left-0 w-full px-6 pb-5 pt-4 pointer-events-none z-40" style={{ background: `linear-gradient(to top, var(--bg) 60%, transparent)` }}>
               <div className="max-w-[680px] mx-auto pointer-events-auto">
-                <form onSubmit={handleSubmit} className="flex items-center gap-2 rounded-2xl px-4 py-1.5" style={{ background: tc("rgba(255,255,255,0.9)", "rgba(20,22,30,0.9)"), backdropFilter: "blur(20px)", border: `1px solid ${tc("rgba(0,0,0,0.07)", "rgba(255,255,255,0.07)")}`, boxShadow: tc("0 2px 16px rgba(0,0,0,0.04)", "0 2px 16px rgba(0,0,0,0.5)") }}>
+                <form onSubmit={handleSubmit} className="flex items-center gap-2 rounded-[20px] px-4 py-1.5" style={{ background: tc("rgba(255,255,255,0.6)", "rgba(18,20,28,0.7)"), backdropFilter: "blur(40px) saturate(1.5)", border: `1px solid ${tc("rgba(0,0,0,0.05)", "rgba(255,255,255,0.06)")}`, boxShadow: tc("0 4px 24px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.7)", "0 4px 24px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.03)") }}>
                   <input
                     value={input}
                     onChange={e => setInput(e.target.value)}
