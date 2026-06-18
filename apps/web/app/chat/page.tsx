@@ -506,7 +506,13 @@ export default function ChatPage() {
           <>
             <section className="flex-1 overflow-y-auto px-8 pt-8 pb-40" style={{ scrollbarWidth: "none" }}>
               <div className="max-w-[680px] mx-auto flex flex-col gap-7">
-                {messages.map(message => (
+                {messages.map(message => {
+                  // Hide system continuation messages
+                  if (message.role === "user") {
+                    const txt = (message.parts || []).find((p: any) => p.type === "text") as any;
+                    if (txt?.text?.startsWith("[System]")) return null;
+                  }
+                  return (
                   <div key={message.id} style={{ animation: "fadeIn 0.2s ease-out" }}>
                     {message.role === "user" ? (
                       <div className="flex justify-end mb-1">
@@ -550,7 +556,7 @@ export default function ChatPage() {
                       </div>
                     )}
                   </div>
-                ))}
+                ); })}
                 {(status === "submitted" || status === "streaming") && messages[messages.length - 1]?.role !== "assistant" && (
                   <div className="flex items-center gap-1.5 py-2" style={{ animation: "fadeIn 0.2s ease-out" }}>
                     <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "var(--accent, #999)", animationDelay: "0ms", opacity: 0.5 }} />

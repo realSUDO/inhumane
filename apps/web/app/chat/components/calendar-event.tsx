@@ -6,8 +6,8 @@ function MaximizeIcon() {
   return <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>;
 }
 
-function EmailTagInput({ isDark }: { isDark: boolean }) {
-  const [emails, setEmails] = useState<string[]>([]);
+function EmailTagInput({ isDark, initial }: { isDark: boolean; initial?: string[] }) {
+  const [emails, setEmails] = useState<string[]>(initial || []);
   const [current, setCurrent] = useState("");
   const tc = (l: string, d: string) => isDark ? d : l;
 
@@ -99,7 +99,7 @@ export function CalendarEvent({ isDark, onClose, onExpand, prefill, onSuccess }:
         </div>
         <div className="px-5 py-3 flex items-center gap-3" style={{ borderTop: `1px solid ${tc("rgba(0,0,0,0.04)", "rgba(255,255,255,0.04)")}` }}>
           <PlusSignIcon size={16} style={{ color: tc("#666", "#888") }} />
-          <EmailTagInput isDark={isDark} />
+          <EmailTagInput isDark={isDark} initial={prefill?.guests} />
         </div>
         <div className="px-5 py-3" style={{ borderTop: `1px solid ${tc("rgba(0,0,0,0.04)", "rgba(255,255,255,0.04)")}` }}>
           <textarea value={desc} onChange={e => setDesc(e.target.value)} className="w-full bg-transparent outline-none text-[13px] resize-none min-h-[60px] leading-[1.6]" style={{ color: tc("#333", "#ddd") }} placeholder="Add description or notes..." />
