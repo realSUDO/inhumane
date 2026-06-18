@@ -64,6 +64,19 @@ export function EmailInbox({ isDark, onClose, expanded, onExpand }: { isDark: bo
   const extractName = (from: string) => from.replace(/<.*>/, "").trim().replace(/"/g, "") || from;
 
   const doAction = async (id: string, action: "trash" | "archive" | "star" | "unstar" | "read" | "unread") => {
+    // Optimistic UI update first
+    if (action === "trash" || action === "archive") {
+      setEmails(prev => prev.filter(m => m.id !== id));
+    } else if (action === "star") {
+      setEmails(prev => prev.map(m => m.id === id ? { ...m, labelIds: [...m.labelIds, "STARRED"] } : m));
+    } else if (action === "unstar") {
+      setEmails(prev => prev.map(m => m.id === id ? { ...m, labelIds: m.labelIds.filter(l => l !== "STARRED") } : m));
+    } else if (action === "read") {
+      setEmails(prev => prev.map(m => m.id === id ? { ...m, unread: false } : m));
+    } else if (action === "unread") {
+      setEmails(prev => prev.map(m => m.id === id ? { ...m, unread: true } : m));
+    }
+
     let url = `/api/emails/${id}/`;
     let body: any = undefined;
     if (action === "trash") { url += "trash"; }
@@ -72,8 +85,7 @@ export function EmailInbox({ isDark, onClose, expanded, onExpand }: { isDark: bo
     else if (action === "unstar") { url += "modify"; body = { removeLabelIds: ["STARRED"] }; }
     else if (action === "read") { url += "modify"; body = { removeLabelIds: ["UNREAD"] }; }
     else if (action === "unread") { url += "modify"; body = { addLabelIds: ["UNREAD"] }; }
-    await fetch(url, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, ...(body ? { body: JSON.stringify(body) } : {}) });
-    setEmails(prev => prev.filter(m => m.id !== id));
+    fetch(url, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, ...(body ? { body: JSON.stringify(body) } : {}) });
   };
 
   // Email detail view

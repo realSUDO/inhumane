@@ -2,6 +2,7 @@ import { Router } from "express";
 import { corsair } from "../corsair";
 import { auth } from "@repo/auth";
 import { fromNodeHeaders } from "better-auth/node";
+import { cache } from "../cache";
 
 export const emailsRouter = Router();
 
@@ -18,6 +19,11 @@ emailsRouter.get("/", async (req, res) => {
     const tenant = corsair.withTenant(session.user.id);
     const listParams: any = { maxResults };
     if (pageToken) listParams.pageToken = pageToken;
+
+    // Check cache
+    const cacheKey = cache.emailsKey(session.user.id, label, pageToken || "1");
+    const cached = await cache.get<any>(cacheKey);
+    if (cached) { res.json(cached); return; }
 
     // Use q param for filtering - more reliable across wrappers
     if (label === "INBOX") listParams.q = "in:inbox";
@@ -73,6 +79,8 @@ emailsRouter.get("/", async (req, res) => {
       emails: detailed,
       nextPageToken: list.nextPageToken || null,
     });
+    // Cache result
+    await cache.set(cacheKey, { emails: detailed, nextPageToken: list.nextPageToken || null }, cache.TTL.emails);
   } catch (err: any) {
     res.status(500).json({ error: err.message || "Failed to fetch emails" });
   }
@@ -121,6 +129,7 @@ emailsRouter.post("/:id/trash", async (req, res) => {
   try {
     const tenant = corsair.withTenant(session.user.id);
     await tenant.gmail.api.messages.trash({ id: req.params.id });
+    await cache.delPattern(`emails:${session.user.id}:*`);
     res.json({ ok: true });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
@@ -132,6 +141,7 @@ emailsRouter.post("/:id/untrash", async (req, res) => {
   try {
     const tenant = corsair.withTenant(session.user.id);
     await tenant.gmail.api.messages.untrash({ id: req.params.id });
+    await cache.delPattern(`emails:${session.user.id}:*`);
     res.json({ ok: true });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
@@ -144,6 +154,7 @@ emailsRouter.post("/:id/modify", async (req, res) => {
     const tenant = corsair.withTenant(session.user.id);
     const { addLabelIds, removeLabelIds } = req.body;
     await tenant.gmail.api.messages.modify({ id: req.params.id, addLabelIds, removeLabelIds });
+    await cache.delPattern(`emails:${session.user.id}:*`);
     res.json({ ok: true });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });

@@ -113,30 +113,38 @@ export function CalendarFull({ isDark, onClose, onMinimize }: { isDark: boolean;
   const saveEvent = async () => {
     if (!popup || (!popup.event && popup.day === undefined)) return;
     if (popup.event) {
-      // Edit existing
+      // Optimistic update
+      setEvents(prev => prev.map(e => e.id === popup.event!.id ? { ...e, summary: popupTitle || e.summary, description: popupDesc, colorId: popupColor } : e));
+      setPopup(null);
       await fetch(`/api/calendar/events/${popup.event.id}`, { method: "PUT", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ summary: popupTitle || popup.event.summary, description: popupDesc, colorId: popupColor }) });
     } else {
-      // Create new
+      // Optimistic create
       const day = addDays(weekStart, popup.day!);
       const start = new Date(day); start.setHours(0, popup.startQ! * 15, 0, 0);
       const end = new Date(day); end.setHours(0, popup.endQ! * 15, 0, 0);
-      await fetch("/api/calendar/events", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ summary: popupTitle || "Untitled", description: popupDesc, colorId: popupColor, start: { dateTime: start.toISOString() }, end: { dateTime: end.toISOString() } }) });
+      const tempId = `temp-${Date.now()}`;
+      const optimistic: CalEvent = { id: tempId, summary: popupTitle || "Untitled", start: { dateTime: start.toISOString() }, end: { dateTime: end.toISOString() }, colorId: popupColor };
+      setEvents(prev => [...prev, optimistic]);
+      setPopup(null);
+      const res = await fetch("/api/calendar/events", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ summary: popupTitle || "Untitled", description: popupDesc, colorId: popupColor, start: { dateTime: start.toISOString() }, end: { dateTime: end.toISOString() } }) });
+      if (res.ok) {
+        const real = await res.json();
+        setEvents(prev => prev.map(e => e.id === tempId ? { ...e, id: real.id || tempId } : e));
+      }
     }
-    setPopup(null);
-    fetchEvents();
   };
 
   const deleteEvent = async (id: string) => {
-    await fetch(`/api/calendar/events/${id}`, { method: "DELETE", credentials: "include" });
-    setEvents(prev => prev.filter(e => e.id !== id));
+    setEvents(prev => prev.filter(e => e.id !== id)); // Optimistic
     setPopup(null);
     setCtxMenu(null);
+    await fetch(`/api/calendar/events/${id}`, { method: "DELETE", credentials: "include" });
   };
 
   const changeColor = async (eventId: string, colorId: string) => {
-    await fetch(`/api/calendar/events/${eventId}`, { method: "PUT", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ colorId }) });
-    setEvents(prev => prev.map(e => e.id === eventId ? { ...e, colorId } : e));
+    setEvents(prev => prev.map(e => e.id === eventId ? { ...e, colorId } : e)); // Optimistic
     setCtxMenu(null);
+    await fetch(`/api/calendar/events/${eventId}`, { method: "PUT", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ colorId }) });
   };
 
   const getEventPosition = (event: CalEvent) => {

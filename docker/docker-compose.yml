@@ -36,10 +36,12 @@ services:
     env_file: .env
     environment:
       - PORT=4000
+      - REDIS_URL=redis://valkey:6379
     expose:
       - "4000"
     depends_on:
       - postgres
+      - valkey
 
   postgres:
     image: postgres:15-alpine
@@ -53,7 +55,16 @@ services:
     expose:
       - "5432"
 
+  valkey:
+    image: valkey/valkey:8-alpine
+    restart: unless-stopped
+    expose:
+      - "6379"
+    volumes:
+      - valkey_data:/data
+
 volumes:
   caddy_data:
   caddy_config:
   pg_data:
+  valkey_data:
