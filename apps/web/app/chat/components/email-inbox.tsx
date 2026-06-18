@@ -113,7 +113,13 @@ export function EmailInbox({ isDark, onClose, expanded, onExpand }: { isDark: bo
               <p className="text-[12px] mt-0.5" style={{ color: tc("#666", "#888") }}>to {openEmail.to ? extractName(openEmail.to) : "me"}</p>
             </div>
           </div>
-          <div className="text-[14px] leading-[1.7] whitespace-pre-wrap" style={{ color: tc("#333", "#ddd") }}>{openEmail.body || openEmail.snippet}</div>
+          <div className="text-[14px] leading-[1.7]" style={{ color: tc("#333", "#ddd") }}>
+            {openEmail.body?.includes("<") ? (
+              <div dangerouslySetInnerHTML={{ __html: openEmail.body }} className="email-body [&_a]:underline [&_a]:text-[color:var(--accent,#4A6FA5)] [&_img]:max-w-full [&_img]:h-auto" />
+            ) : (
+              <p className="whitespace-pre-wrap">{(openEmail.body || openEmail.snippet).replace(/(https?:\/\/[^\s]+)/g, '|||LINK:$1|||').split('|||').map((part, i) => part.startsWith('LINK:') ? <a key={i} href={part.slice(5)} target="_blank" rel="noopener noreferrer" className="underline break-all" style={{ color: "var(--accent, #4A6FA5)" }}>{part.slice(5)}</a> : part)}</p>
+            )}
+          </div>
         </div>
       </div>
     );

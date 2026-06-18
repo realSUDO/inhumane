@@ -8,6 +8,7 @@ import { CalendarEvent } from "./components/calendar-event";
 import { CalendarFull } from "./components/calendar-full";
 import { EmailInbox } from "./components/email-inbox";
 import { Mail01Icon, Calendar03Icon, PencilEdit01Icon, Logout03Icon, PlusSignIcon, Home01Icon, Clock01Icon, Settings01Icon, SentIcon, MoreHorizontalIcon, Delete02Icon, PinIcon, Archive01Icon, Edit02Icon, Copy01Icon, RefreshIcon } from "hugeicons-react";
+import Markdown from "react-markdown";
 
 type Thread = { id: string; title: string; pinned: boolean; archived: boolean; created_at: string };
 type ConnectStatus = { gmail: boolean; googlecalendar: boolean };
@@ -583,7 +584,7 @@ export default function ChatPage() {
                                 if (b.type === "text" && b.content?.trim()) {
                                   return (
                                     <div key={`${i}-${bi}`} className="rounded-[20px] rounded-tl-sm px-5 py-3.5 shadow-sm" style={{ background: tc("rgba(255,255,255,0.7)", "rgba(26,28,35,0.7)"), backdropFilter: "blur(20px)", border: `1px solid ${tc("rgba(0,0,0,0.04)", "rgba(255,255,255,0.04)")}` }}>
-                                      <div className="text-[15px] leading-relaxed tracking-tight whitespace-pre-wrap" style={{ color: tc("#1c1b1b", "#e0e0e0") }}>{b.content.trim()}</div>
+                                      <div className="text-[15px] leading-relaxed tracking-tight prose prose-sm max-w-none" style={{ color: tc("#1c1b1b", "#e0e0e0") }}><Markdown components={{ a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer" className="underline" style={{ color: "var(--accent, #4A6FA5)" }}>{children}</a>, p: ({ children }) => <p className="mb-1.5 last:mb-0">{children}</p>, ol: ({ children }) => <ol className="list-decimal pl-4 mb-1.5 space-y-0.5">{children}</ol>, ul: ({ children }) => <ul className="list-disc pl-4 mb-1.5 space-y-0.5">{children}</ul>, strong: ({ children }) => <strong className="font-semibold">{children}</strong>, code: ({ children }) => <code className="px-1 py-0.5 rounded text-[13px]" style={{ background: tc("rgba(0,0,0,0.05)", "rgba(255,255,255,0.08)") }}>{children}</code> }}>{b.content.trim()}</Markdown></div>
                                     </div>
                                   );
                                 }
