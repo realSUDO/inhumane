@@ -231,7 +231,7 @@ export default function ChatPage() {
     body: () => ({ threadId: activeThreadRef.current }),
   }), []);
 
-  const { messages, sendMessage, status, setMessages } = useChat({ transport });
+  const { messages, sendMessage, status, setMessages, append } = useChat({ transport });
 
   useEffect(() => {
     fetch("/api/threads", { credentials: "include" }).then(r => r.json()).then(setThreads).catch(() => { });
@@ -535,10 +535,10 @@ export default function ChatPage() {
                                   );
                                 }
                                 if (b.type === "email-draft" || b.type === "email-action") {
-                                  return <div key={`${i}-${bi}`} className="w-full max-w-full"><EmailActionCard data={b.data} /></div>;
+                                  return <div key={`${i}-${bi}`} className="w-full max-w-full"><EmailActionCard data={b.data} onSuccess={() => append({ role: 'user', content: '[System] Action completed successfully. Proceed to the next task.' })} /></div>;
                                 }
                                 if (b.type === "calendar-event" || b.type === "calendar-action") {
-                                  return <div key={`${i}-${bi}`} className="w-full max-w-full"><CalendarActionCard data={b.data} /></div>;
+                                  return <div key={`${i}-${bi}`} className="w-full max-w-full"><CalendarActionCard data={b.data} onSuccess={() => append({ role: 'user', content: '[System] Action completed successfully. Proceed to the next task.' })} /></div>;
                                 }
                                 return null;
                               });

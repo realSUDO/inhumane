@@ -20,12 +20,10 @@ const fast = createOpenAI({
 const writer = createOpenAI({
   apiKey: process.env.LLM_API_KEY,
   baseURL: process.env.LLM_BASE_URL || "https://api.openai.com/v1",
-});
-
-// ─── ROUTER ───
+}// ─── ROUTER ───
 const ROUTER_PROMPT = `You are a message classifier. Read the FULL conversation and classify the user's LAST message.
 
-Output EXACTLY one JSON object: {"intent":"LABEL","sufficient":true/false}
+Output EXACTLY one JSON object: {"intents":["LABEL1", "LABEL2"], "sufficient":true/false, "extractedEmails": ["any_spelled_out_emails"]}
 
 Labels:
 - GREETING: "hi", "hey", "hello", "thanks", "ok", "yes", "no" (single word pleasantries)
@@ -43,51 +41,58 @@ Labels:
 
 Output only the JSON. No explanation.`;
 
+const getMemoryString = (emails: string[]) => {
+  if (!emails || emails.length === 0) return "";
+  return `\n\nThread Memory (Important Entities):\n- Emails: ${emails.join(", ")}`;
+};
+
 // ─── FAST CONVERSATIONAL ───
-const FAST_PROMPT = `You are Inhumane — a blazing-fast AI operator for email and calendar.
+const getFastPrompt = (memoryContext: string = "") => `You are Inhumane — a blazing-fast AI operator for email and calendar.
+Today's Date: ${new Date().toLocaleString()}${memoryContext}
 Keep responses SHORT (1-2 sentences max). Be direct, warm, confident.
+CRITICAL: You CANNOT execute tools in this state. NEVER pretend to have scheduled an event or sent an email.
+If the user wants to send an email or schedule an event, but hasn't provided the necessary details (like time, date, or topic), ask them for the missing information in one short sentence.
 If user asks what you can do: "I can send emails, read your inbox, manage your calendar — all through chat. Just tell me what you need."
-If user wants to send email but hasn't said who/what: ask BOTH in one short question.
 If user says "yes"/"send it"/"do it" to confirm an action: respond with "✓ Done."`;
 
-// ─── WRITER (email drafting) ───
-const WRITER_PROMPT = `You are Inhumane — a world-class email copywriter.
+// ─── MULTI WRITER (Agentic Action) ───
+const getMultiWriterPrompt = (memoryContext: string = "") => `You are Inhumane — a world-class AI operator.
+The user wants you to perform one or more actions (like sending an email and scheduling an event).
 
-Given the conversation context, draft the email NOW. Do not ask questions — you have enough info.
+CRITICAL RULE for SEQUENTIAL EXECUTION:
+If the user wants multiple things (e.g. email + calendar), you MUST do them one by one sequentially!
+1. First, briefly state what you are doing right now.
+2. Output the required action block for the FIRST task.
+3. Stop generating. Wait for the user to confirm completion.
+4. Once the user confirms completion, output the action block for the NEXT task.
 
-Rules:
-- Write naturally, match the tone to the context (casual for friends, professional for work)
-- Generate a clear, compelling subject line
-- Body should be well-written, appropriate length (not too short, not too long)
-- Output ONLY the action block, no other text before or after:
-
+To draft an email, output ONLY this block (no other text):
 \`\`\`email-action
 {"to":"email@example.com","subject":"Subject line","body":"Full email body here"}
-\`\`\``;
+\`\`\`
 
-// ─── CALENDAR WRITER ───
-const CALENDAR_PROMPT = `You are Inhumane — a calendar scheduling assistant.
-
-Given the conversation context, create the calendar event NOW. Do not ask questions — you have enough info.
-
-Rules:
-- Parse the date/time from conversation. If no time given, default to 10:00 AM, 1 hour duration.
-- If no date given, assume today or next occurrence of the day mentioned.
-- Use ISO 8601 format for start/end times.
-- Output ONLY the action block, no other text before or after:
-
+To schedule a calendar event, output ONLY this block (no other text):
 \`\`\`calendar-action
 {"summary":"Event title","start":"2024-01-15T10:00:00","end":"2024-01-15T11:00:00","description":"Optional description","guests":["email@example.com"]}
-\`\`\``;
+\`\`\`
+
+Today's Context: ${new Date().toLocaleString()}${memoryContext}
+
+Drafting Rules:
+- Write naturally, match the tone to the context.
+- For CALENDAR: Use ISO 8601 for start/end. If no time, default 10:00 AM, 1 hr. If no date, assume today/next occurrence.`;
 
 // ─── TOOL EXECUTION ───
-const TOOL_PROMPT = `You are Inhumane. Use run_script to execute operations. Be brief with results.
+const getToolPrompt = (memoryContext: string = "") => `You are Inhumane. Use run_script to execute operations. Be brief with results.
+Today's Date: ${new Date().toLocaleString()}${memoryContext}
 
 # READ EMAILS
 run_script: const list = await corsair.gmail.api.messages.list({ maxResults: 5 }); const results = []; for (const m of (list.messages || [])) { const full = await corsair.gmail.api.messages.get({ id: m.id }); results.push({ id: full.id, snippet: full.snippet, from: (full.payload?.headers || []).find(h => h.name === "From")?.value, subject: (full.payload?.headers || []).find(h => h.name === "Subject")?.value, date: (full.payload?.headers || []).find(h => h.name === "Date")?.value }); } return results;
 
-# CALENDAR READ
-run_script: return await corsair.googlecalendar.api.events.getMany({ timeMin: new Date().toISOString(), timeMax: new Date(Date.now()+7*86400000).toISOString(), singleEvents: true, orderBy: "startTime" });
+# READ CALENDAR
+run_script: const res = await corsair.googlecalendar.api.events.list({ calendarId: 'primary', timeMin: new Date().toISOString(), maxResults: 5, singleEvents: true, orderBy: 'startTime' }); return res.items?.map(e => ({ title: e.summary, start: e.start?.dateTime || e.start?.date, end: e.end?.dateTime || e.end?.date, link: e.htmlLink }));
+
+Present results as a clean list. ✓ after done.`;ue, orderBy: "startTime" });
 
 Present results as a clean list. ✓ after done.`;
 
@@ -154,6 +159,30 @@ chatRouter.post("/", async (req, res) => {
   try {
     const modelMessages = await convertToModelMessages(messages);
 
+    // Fetch Memory
+    let memoryEmails: string[] = [];
+    if (threadId) {
+      const memoryKey = `thread_context:${threadId}`;
+      const existingStr = await redis.get(memoryKey).catch(() => null);
+      memoryEmails = existingStr ? JSON.parse(existingStr) : [];
+    }
+    const memoryContext = getMemoryString(memoryEmails);
+
+    // If the last message is a simulated tool result, we are in the middle of an agentic loop.
+    // Skip the router and go directly back to the writer model!
+    if (lastMsg.role === "user" && lastMsg.content === "[System] Action completed successfully. Proceed to the next task.") {
+      const client = await getMcpClient(session.user.id);
+      const mcpTools = await client.tools();
+      const result = streamText({
+        model: writer(process.env.LLM_MODEL || "gpt-4.1-mini"),
+        system: getMultiWriterPrompt(memoryContext) + "\n\nCRITICAL: The previous action was successful. Output the NEXT action block in the sequence, or confirm final completion.",
+        messages: modelMessages,
+        tools: mcpTools,
+      });
+      await streamToResponse(result, res, threadId);
+      return;
+    }
+
     // Step 1: Route (Groq, ~200ms)
     const { text: routerResponse } = await generateText({
       model: fast.chat("llama-3.3-70b-versatile"),
@@ -161,60 +190,61 @@ chatRouter.post("/", async (req, res) => {
       messages: modelMessages,
     });
 
-    let intent = "GENERAL", sufficient = true;
+    let intents = ["GENERAL"];
+    let sufficient = true;
+    let extractedEmails: string[] = [];
     try {
       const parsed = JSON.parse(routerResponse.trim());
-      intent = parsed.intent || "GENERAL";
+      intents = Array.isArray(parsed.intents) ? parsed.intents : (parsed.intent ? [parsed.intent] : ["GENERAL"]);
       sufficient = parsed.sufficient !== false;
-    } catch { intent = routerResponse.trim().toUpperCase(); }
+      if (Array.isArray(parsed.extractedEmails)) extractedEmails = parsed.extractedEmails;
+    } catch { intents = [routerResponse.trim().toUpperCase()]; }
 
-    console.log("[chat] intent:", intent, "sufficient:", sufficient);
+    // Update Memory with Router Extracted Emails
+    if (threadId && extractedEmails.length > 0) {
+      const memoryKey = `thread_context:${threadId}`;
+      memoryEmails = Array.from(new Set([...memoryEmails, ...extractedEmails]));
+      await redis.set(memoryKey, JSON.stringify(memoryEmails)).catch(() => {});
+    }
+    const finalMemoryContext = getMemoryString(memoryEmails);
+
+    console.log("[chat] intents:", intents, "sufficient:", sufficient, "memory:", memoryEmails);
 
     // Step 2: Handle based on intent + sufficiency
 
     // Greetings, about, or insufficient info → fast model responds conversationally
-    if (intent === "GREETING" || intent === "ABOUT" || !sufficient) {
+    if (intents.includes("GREETING") || intents.includes("ABOUT") || !sufficient) {
       const result = streamText({
         model: fast.chat("llama-3.3-70b-versatile"),
-        system: FAST_PROMPT,
+        system: getFastPrompt(finalMemoryContext),
         messages: modelMessages,
       });
       await streamToResponse(result, res, threadId);
       return;
     }
 
-    // Send email with sufficient info → writer drafts
-    if (intent === "SEND_EMAIL") {
+    // Action requiring drafting (Email / Calendar)
+    if (intents.includes("SEND_EMAIL") || intents.includes("CALENDAR_CREATE")) {
       const result = streamText({
         model: writer(process.env.LLM_MODEL || "gpt-4.1-mini"),
-        system: WRITER_PROMPT,
+        system: getMultiWriterPrompt(finalMemoryContext),
         messages: modelMessages,
+        // no tools for drafting, we rely on markdown blocks
       });
       await streamToResponse(result, res, threadId);
       return;
     }
 
     // Read operations → writer + tools
-    if (intent === "READ_EMAIL" || intent === "CALENDAR_READ") {
+    if (intents.includes("READ_EMAIL") || intents.includes("CALENDAR_READ")) {
       const client = await getMcpClient(session.user.id);
       const tools = await client.tools();
       const result = streamText({
         model: writer(process.env.LLM_MODEL || "gpt-4.1-mini"),
-        system: TOOL_PROMPT,
+        system: getToolPrompt(finalMemoryContext),
         messages: modelMessages,
         tools,
         stopWhen: stepCountIs(10),
-      });
-      await streamToResponse(result, res, threadId);
-      return;
-    }
-
-    // Calendar create with sufficient info → writer drafts event
-    if (intent === "CALENDAR_CREATE") {
-      const result = streamText({
-        model: writer(process.env.LLM_MODEL || "gpt-4.1-mini"),
-        system: CALENDAR_PROMPT,
-        messages: modelMessages,
       });
       await streamToResponse(result, res, threadId);
       return;
@@ -225,7 +255,7 @@ chatRouter.post("/", async (req, res) => {
     const tools = await client.tools();
     const result = streamText({
       model: writer(process.env.LLM_MODEL || "gpt-4.1-mini"),
-      system: FAST_PROMPT + "\n\nYou also have tools: run_script for Gmail/Calendar operations.",
+      system: getFastPrompt(finalMemoryContext) + "\n\nYou also have tools: run_script for Gmail/Calendar operations.",
       messages: modelMessages,
       tools,
       stopWhen: stepCountIs(10),
