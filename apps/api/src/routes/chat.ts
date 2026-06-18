@@ -103,7 +103,7 @@ const getToolPrompt = (memoryContext: string = "") => `You are Inhumane. Use run
 Today's Date: ${new Date().toLocaleString()}${memoryContext}
 
 # READ EMAILS
-run_script: const list = await corsair.gmail.api.messages.list({ maxResults: 5 }); const results = []; for (const m of (list.messages || [])) { const full = await corsair.gmail.api.messages.get({ id: m.id }); results.push({ id: full.id, snippet: full.snippet, from: (full.payload?.headers || []).find(h => h.name === "From")?.value, subject: (full.payload?.headers || []).find(h => h.name === "Subject")?.value, date: (full.payload?.headers || []).find(h => h.name === "Date")?.value }); } return results;
+run_script: const list = await corsair.gmail.api.messages.list({ maxResults: 5, q: "in:inbox" }); const results = []; for (const m of (list.messages || [])) { const full = await corsair.gmail.api.messages.get({ id: m.id }); results.push({ id: full.id, snippet: full.snippet, from: (full.payload?.headers || []).find(h => h.name === "From")?.value, subject: (full.payload?.headers || []).find(h => h.name === "Subject")?.value, date: (full.payload?.headers || []).find(h => h.name === "Date")?.value }); } return results;
 
 # READ CALENDAR
 run_script: const res = await corsair.googlecalendar.api.events.list({ calendarId: 'primary', timeMin: new Date().toISOString(), maxResults: 5, singleEvents: true, orderBy: 'startTime' }); return res.items?.map(e => ({ title: e.summary, start: e.start?.dateTime || e.start?.date, end: e.end?.dateTime || e.end?.date, link: e.htmlLink }));
@@ -112,10 +112,15 @@ Present results as a clean list. ✓ after done.`;
 
 // ─── MCP CACHE ───
 const mcpClients = new Map<string, { client: Awaited<ReturnType<typeof createVercelAiMcpClient>>; ts: number }>();
-async function getMcpClient(tenantId: string) {
-  const c = mcpClients.get(tenantId);
-  if (c && Date.now() - c.ts < 300000) return c.client;
-  if (c) { await c.client.close?.().catch(() => {}); mcpClients.delete(tenantId); }
+async function getMcpClient(tenantId: string, forceNew = false) {
+  if (!forceNew) {
+    const c = mcpClients.get(tenantId);
+    if (c && Date.now() - c.ts < 300000) return c.client;
+    if (c) { await c.client.close?.().catch(() => {}); mcpClients.delete(tenantId); }
+  } else {
+    const c = mcpClients.get(tenantId);
+    if (c) { await c.client.close?.().catch(() => {}); mcpClients.delete(tenantId); }
+  }
   const port = process.env.PORT || 8000;
   const client = await createVercelAiMcpClient({ url: `http://localhost:${port}/mcp/${tenantId}` });
   mcpClients.set(tenantId, { client, ts: Date.now() });
@@ -251,8 +256,9 @@ chatRouter.post("/", async (req, res) => {
     if (intents.includes("SEND_EMAIL") || intents.includes("CALENDAR_CREATE")) {
       if (trust) {
         // Trust mode: execute directly without confirmation cards
-        const client = await getMcpClient(session.user.id);
-        const tools = await client.tools();
+        let client = await getMcpClient(session.user.id);
+        let tools;
+        try { tools = await client.tools(); } catch { client = await getMcpClient(session.user.id, true); tools = await client.tools(); }
         const result = streamText({
           model: writer(process.env.LLM_MODEL || "gpt-4.1-mini"),
           system: `You are Inhumane. The user has TRUST MODE enabled — execute actions directly, no confirmation needed.
@@ -278,8 +284,13 @@ Execute ALL requested actions sequentially. Report each completion briefly. Be c
 
     // Read operations → writer + tools
     if (intents.includes("READ_EMAIL") || intents.includes("CALENDAR_READ")) {
-      const client = await getMcpClient(session.user.id);
-      const tools = await client.tools();
+      let client = await getMcpClient(session.user.id);
+      let tools;
+      try { tools = await client.tools(); } catch {
+        // Session expired — force new client
+        client = await getMcpClient(session.user.id, true);
+        tools = await client.tools();
+      }
       const result = streamText({
         model: writer(process.env.LLM_MODEL || "gpt-4.1-mini"),
         system: getToolPrompt(finalMemoryContext),
