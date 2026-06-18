@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { motion } from "motion/react";
-import { ArrowRight, Play, Moon, Sun } from "lucide-react";
+import { ArrowRight, Play, Moon, Sun, Github } from "lucide-react";
 import { useTypewriter } from "../hooks/use-typewriter";
 
 const THEMES = [
@@ -80,7 +80,10 @@ function Navbar() {
         <Link href="#features" className="hover:opacity-70 transition-opacity" style={{ color: "var(--fg-primary)" }}>Features</Link>
         <Link href="#atmosphere" className="hover:opacity-70 transition-opacity" style={{ color: "var(--fg-primary)" }}>Atmosphere</Link>
       </nav>
-      <div>
+      <div className="flex items-center gap-5">
+        <a href="https://github.com/realSUDO/inhumane/" target="_blank" rel="noreferrer" className="hover:opacity-70 transition-opacity" style={{ color: "var(--fg-primary)" }}>
+          <Github size={20} />
+        </a>
         <Link
           href="/chat"
           className="px-6 py-2.5 rounded-full text-sm font-medium hover:scale-105 transition-all shadow-sm"
@@ -185,12 +188,12 @@ function PhilosophySection() {
         <div className="md:col-span-8 space-y-20">
           <div className="max-w-2xl">
             <p className="leading-relaxed text-lg sm:text-xl transition-colors duration-700" style={{ color: "var(--fg-secondary)" }}>
-              Generic AI is built for everyone. It is polite, verbose, and visually unremarkable. It hides behind conversational pleasantries and cluttered interfaces.
+              The modern assistant is trapped in a chat box. Verbose, isolated, and visually unremarkable, it exists entirely separate from your actual work.
             </p>
           </div>
           <div className="max-w-2xl border-t pt-12 transition-colors duration-700" style={{ borderColor: "var(--border-color)" }}>
             <p className="leading-relaxed text-lg sm:text-xl transition-colors duration-700" style={{ color: "var(--fg-secondary)" }}>
-              Inhumane is the correction. We prioritize raw signal. We strip away the "chat" and return to the "canvas." It is the precision of a scalpel in a world of blunt instruments.
+              Inhumane collapses the distance. It is an execution layer woven directly into your inbox and calendar. We stripped away the conversational clutter to give you a minimal, high-fidelity canvas that acts as fast as you think.
             </p>
           </div>
         </div>
@@ -209,7 +212,7 @@ function PhilosophySection() {
         </div>
         <div className="md:col-span-8">
           <p className="leading-relaxed text-lg sm:text-xl max-w-2xl transition-colors duration-700" style={{ color: "var(--fg-secondary)" }}>
-            Your workspace should feel like a gallery, not a customer support ticket. High-fidelity responses, minimal friction, and a layout that respects your intelligence.
+            Your workspace should feel like a gallery, not a customer support ticket. Read, draft, and schedule natively within an interface that respects your intelligence.
           </p>
         </div>
       </motion.div>
@@ -249,7 +252,7 @@ function FeatureSection() {
           <div>
             <h3 className="text-xl font-medium mb-6 transition-colors duration-700" style={{ color: "var(--fg-primary)" }}>Pure Flow</h3>
             <p className="leading-relaxed text-lg sm:text-xl max-w-md transition-colors duration-700" style={{ color: "var(--fg-secondary)" }}>
-              Experience a workspace that anticipates your rhythm. No bubbles. No clutter. Just a seamless stream of refined intelligence presented on a high-contrast canvas.
+              No tabs. No friction. Inhumane integrates natively with your communications, allowing you to read emails, compose inline replies, and manage your time without ever breaking focus.
             </p>
           </div>
           <Link 
@@ -281,7 +284,7 @@ function AtmosphereSection({ activeTheme, setActiveTheme, isDark, toggleDarkMode
             <span className="w-2 h-2 rounded-full animate-pulse transition-colors duration-700" style={{ background: "var(--accent, #111)" }} />
           </h3>
           <p className="leading-relaxed text-lg sm:text-xl max-w-md mb-10 transition-colors duration-700" style={{ color: "var(--fg-secondary)" }}>
-            Our dynamic UI shifts subtly as your thoughts evolve. Not through jarring color changes, but through a 'dipped' atmospheric tint that anchors your focus. Includes global dark mode.
+            Aesthetics influence thought. Choose your accent, and watch the entire workspace dip into a cohesive tint. An environment designed to anchor your focus, day or night.
           </p>
           
           <div className="flex gap-4 items-center">
