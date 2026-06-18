@@ -3,6 +3,7 @@ import { corsair } from "../corsair";
 import { auth } from "@repo/auth";
 import { fromNodeHeaders } from "better-auth/node";
 import { z } from "zod";
+import { cache } from "../cache";
 
 export const emailRouter = Router();
 
@@ -22,6 +23,13 @@ emailRouter.post("/", async (req, res) => {
   const { to, subject, body } = parsed.data;
 
   try {
+    const usage = await cache.getUsage(session.user.id, "actions");
+    if (usage >= 20) {
+      res.status(403).json({ error: "Thanks for Testing the beta! You've finished your free trial, see you in full launch." });
+      return;
+    }
+    await cache.incrementUsage(session.user.id, "actions");
+
     const tenant = corsair.withTenant(session.user.id);
     const mime = ["To: " + to, "Subject: " + subject, "Content-Type: text/plain; charset=utf-8", "", body].join("\r\n");
     const raw = Buffer.from(mime).toString("base64url");

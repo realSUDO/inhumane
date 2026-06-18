@@ -50,12 +50,20 @@ export function EmailCompose({ isDark, onClose, prefill, onSuccess, completed }:
   const [body, setBody] = useState(prefill?.body || "");
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(completed || false);
+  const [error, setError] = useState<string | null>(null);
   const toRef = { current: prefill?.to ? [prefill.to] : [] };
 
   const handleSend = async () => {
     setSending(true);
+    setError(null);
     const res = await fetch("/api/send-email", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ to: toRef.current[0] || prefill?.to, subject, body }) });
-    if (res.ok) { setSent(true); onSuccess?.(); }
+    if (res.ok) { 
+      setSent(true); 
+      onSuccess?.(); 
+    } else {
+      const data = await res.json().catch(() => ({}));
+      setError(data.error || "Failed to send email");
+    }
     setSending(false);
   };
 
@@ -86,9 +94,22 @@ export function EmailCompose({ isDark, onClose, prefill, onSuccess, completed }:
           <input value={subject} onChange={e => setSubject(e.target.value)} className="w-full bg-transparent outline-none text-[13px]" style={{ color: tc("#111", "#eee") }} placeholder="Subject" />
         </div>
         <div className="px-4 py-3">
-          <textarea value={body} onChange={e => setBody(e.target.value)} className="w-full bg-transparent outline-none text-[13px] resize-none min-h-[140px] leading-[1.7]" style={{ color: tc("#222", "#ddd") }} placeholder="Compose email..." />
+          <textarea
+            value={body}
+            onChange={e => setBody(e.target.value)}
+            className="w-full min-h-[160px] p-4 bg-transparent outline-none text-[14px] resize-none"
+            style={{ color: tc("#222", "#eee") }}
+            placeholder="Write something..."
+          />
         </div>
-        <div className="px-4 py-2.5 flex items-center justify-between" style={{ borderTop: `1px solid ${tc("rgba(0,0,0,0.06)", "rgba(255,255,255,0.05)")}` }}>
+        
+        {error && (
+          <div className="px-4 py-2 mx-4 mt-2 text-[12px] rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-100 dark:border-red-900/30">
+            {error}
+          </div>
+        )}
+
+        <div className="flex items-center justify-between px-4 py-3" style={{ background: tc("#f8f9fa", "#1e2028"), borderTop: `1px solid ${tc("rgba(0,0,0,0.06)", "rgba(255,255,255,0.05)")}` }}>
           <button onClick={onClose} className="text-[12px] px-3 py-1.5 rounded-lg hover:opacity-70 transition-opacity" style={{ color: tc("#666", "#888") }}>Discard</button>
           <button onClick={handleSend} disabled={sending} className="px-5 py-2 rounded-full text-[12px] font-semibold text-white flex items-center gap-1.5" style={{ background: "#1a73e8" }}>
             <SendArrowIcon /> {sending ? "Sending..." : "Send"}

@@ -67,5 +67,19 @@ export const cache = {
     }
   },
 
+  // Usage / Beta Limits
+  async incrementUsage(userId: string, type: "messages" | "actions"): Promise<number> {
+    try {
+      return await redis.incr(`usage:${userId}:${type}`);
+    } catch { return 0; }
+  },
+
+  async getUsage(userId: string, type: "messages" | "actions"): Promise<number> {
+    try {
+      const val = await redis.get(`usage:${userId}:${type}`);
+      return val ? parseInt(val, 10) : 0;
+    } catch { return 0; }
+  },
+
   TTL,
 };

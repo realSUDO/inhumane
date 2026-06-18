@@ -350,6 +350,9 @@ export default function ChatPage() {
   const openConnectPopup = (plugin: string) => { window.open(`/api/corsair/connect?plugin=${plugin}`, "corsair-connect", "width=500,height=600,popup=yes"); };
 
   const startNewChat = (prefill?: string) => {
+    setShowInbox(false);
+    setShowCalendarModal(false);
+    setShowEmailModal(false);
     const text = prefill || input;
     if (!text.trim() || status !== "ready") return;
 
@@ -388,13 +391,16 @@ export default function ChatPage() {
     if (input.trim() === "sml") { setShowInbox(true); setShowChat(true); setInput(""); return; }
 
     if (!activeThread) { startNewChat(); return; }
+    setShowInbox(false);
+    setShowCalendarModal(false);
+    setShowEmailModal(false);
     sendMessage({ text: input });
     setInput("");
   };
 
   const tints = isDark
-    ? [{ c: "#7B93FF", bg: "#000000", fg: "#fff" }, { c: "#5DDCCC", bg: "#000000", fg: "#000" }, { c: "#FF7BAA", bg: "#000000", fg: "#fff" }]
-    : [{ c: "#4A6FA5", bg: "#f2f6fc", fg: "#fff" }, { c: "#2D6A4F", bg: "#f0f8f4", fg: "#fff" }, { c: "#8B5CF6", bg: "#f5f2ff", fg: "#fff" }];
+    ? [{ c: "#ffffff", bg: "#000000", fg: "#000" }, { c: "#7B93FF", bg: "#000000", fg: "#fff" }, { c: "#5DDCCC", bg: "#000000", fg: "#000" }, { c: "#FF7BAA", bg: "#000000", fg: "#fff" }]
+    : [{ c: "#111111", bg: "#f2f6fc", fg: "#fff" }, { c: "#4A6FA5", bg: "#f2f6fc", fg: "#fff" }, { c: "#2D6A4F", bg: "#f0f8f4", fg: "#fff" }, { c: "#8B5CF6", bg: "#f5f2ff", fg: "#fff" }];
 
   const tc = (light: string, dark: string) => isDark ? dark : light;
 
@@ -431,9 +437,19 @@ export default function ChatPage() {
           </button>
         </div>
 
+        {/* Quick Apps */}
+        <div className={`flex ${sidebarOpen ? 'flex-row gap-2 px-1' : 'flex-col gap-2 justify-center items-center'} transition-all duration-300 shrink-0`}>
+          <button onClick={() => { setExpandedCalendar(true); setShowCalendarModal(true); setShowInbox(false); setShowEmailModal(false); }} className={`flex flex-col items-center justify-center rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:opacity-90 active:scale-[0.97] transition-all duration-300 relative`} style={{ background: tc("#fff", "rgba(255,255,255,0.05)"), border: `1px solid ${tc("rgba(0,0,0,0.06)", "rgba(255,255,255,0.08)")}`, width: sidebarOpen ? "50%" : 40, height: sidebarOpen ? 52 : 40 }}>
+            <img src="/calendar.png" alt="Calendar" className={`${sidebarOpen ? 'w-6 h-6' : 'w-5 h-5'}`} />
+          </button>
+          <button onClick={() => { setExpandedInbox(true); setShowInbox(true); setShowCalendarModal(false); setShowEmailModal(false); }} className={`flex items-center justify-center rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:opacity-90 active:scale-[0.97] transition-all duration-300`} style={{ background: tc("#fff", "rgba(255,255,255,0.05)"), border: `1px solid ${tc("rgba(0,0,0,0.06)", "rgba(255,255,255,0.08)")}`, width: sidebarOpen ? "50%" : 40, height: sidebarOpen ? 52 : 40 }}>
+            <img src="/gmail.png" alt="Gmail" className={`object-contain ${sidebarOpen ? 'w-6 h-5' : 'w-5 h-4.5'}`} />
+          </button>
+        </div>
+
         {/* New Thread Button */}
         <div className={`shrink-0 flex transition-all duration-300 ${sidebarOpen ? 'px-1' : 'justify-center'}`}>
-          <button onClick={() => { setActiveThread(null); setShowChat(true); setMessages([]); setSearchQuery(""); }} className="flex items-center justify-center rounded-xl font-medium hover:opacity-90 active:scale-[0.97] transition-all duration-300 shadow-sm shrink-0" style={{ background: "var(--accent, #111)", color: "var(--accent-fg, #fff)", width: sidebarOpen ? "100%" : 40, height: 40 }}>
+          <button onClick={() => { setActiveThread(null); setShowChat(false); setMessages([]); setSearchQuery(""); setShowInbox(false); setShowCalendarModal(false); setShowEmailModal(false); }} className="flex items-center justify-center rounded-xl font-medium hover:opacity-90 active:scale-[0.97] transition-all duration-300 shadow-sm shrink-0" style={{ background: "var(--accent, #111)", color: "var(--accent-fg, #fff)", width: sidebarOpen ? "100%" : 40, height: 40 }}>
             <PlusSignIcon size={sidebarOpen ? 16 : 18} className="shrink-0" />
             <span className={`whitespace-nowrap transition-all duration-75 ${sidebarOpen ? 'opacity-100 ml-2 w-auto' : 'opacity-0 w-0 ml-0 overflow-hidden'}`}>New Thread</span>
           </button>
@@ -452,7 +468,7 @@ export default function ChatPage() {
                 <div key={group.label} className="mb-4">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.06em] px-2 mb-1.5" style={{ color: tc("#aaa", "#555") }}>{group.label}</p>
                   {group.threads.map(t => (
-                    <ThreadItem key={t.id} thread={t} active={activeThread === t.id} onSelect={() => setActiveThread(t.id)} onAction={handleThreadAction} isDark={isDark} />
+                    <ThreadItem key={t.id} thread={t} active={activeThread === t.id} onSelect={() => { setActiveThread(t.id); setShowInbox(false); setShowCalendarModal(false); setShowEmailModal(false); }} onAction={handleThreadAction} isDark={isDark} />
                   ))}
                 </div>
               ))}
@@ -541,7 +557,7 @@ export default function ChatPage() {
 
               {/* Chips */}
               <div className="flex flex-wrap gap-2.5 justify-center mt-6">
-                {[{ label: "Read Inbox", icon: Mail01Icon, action: () => { setShowInbox(true); setShowChat(true); } }, { label: "Schedule", icon: Calendar03Icon, action: () => { setShowCalendarModal(true); setShowChat(true); } }, { label: "Compose", icon: PencilEdit01Icon, action: () => { setShowEmailModal(true); setShowChat(true); } }].map(chip => (
+                {[{ label: "Read Inbox", icon: Mail01Icon, action: () => { setExpandedInbox(false); setShowInbox(true); setShowChat(true); } }, { label: "Schedule", icon: Calendar03Icon, action: () => { setExpandedCalendar(false); setShowCalendarModal(true); setShowChat(true); } }, { label: "Compose", icon: PencilEdit01Icon, action: () => { setShowEmailModal(true); setShowChat(true); } }].map(chip => (
                   <button key={chip.label} onClick={chip.action} className="flex items-center gap-2 px-4 py-2.5 rounded-full text-[13px] font-medium transition-all hover:scale-[1.02] active:scale-[0.97]" style={{ background: tc("rgba(0,0,0,0.03)", "rgba(255,255,255,0.04)"), border: `1px solid ${tc("rgba(0,0,0,0.05)", "rgba(255,255,255,0.06)")}`, color: tc("#444", "#bbb") }}>
                     <chip.icon size={14} className="opacity-60" />{chip.label}
                   </button>

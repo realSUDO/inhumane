@@ -66,6 +66,13 @@ calendarRouter.post("/events", async (req, res) => {
     const parsed = createEventSchema.safeParse(req.body);
     if (!parsed.success) { res.status(400).json({ error: "Invalid body", details: parsed.error.issues }); return; }
 
+    const usage = await cache.getUsage(session.user.id, "actions");
+    if (usage >= 20) {
+      res.status(403).json({ error: "Thanks for Testing the beta! You've finished your free trial, see you in full launch." });
+      return;
+    }
+    await cache.incrementUsage(session.user.id, "actions");
+
     const tenant = corsair.withTenant(session.user.id);
     const eventData = { ...parsed.data };
     // Ensure timeZone is set for Google Calendar API

@@ -7,6 +7,7 @@ import { fromNodeHeaders } from "better-auth/node";
 import { Pool } from "pg";
 import { z } from "zod";
 import Redis from "ioredis";
+import { cache } from "../cache";
 
 export const chatRouter = Router();
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -177,6 +178,15 @@ chatRouter.post("/", async (req, res) => {
   }
 
   try {
+    const usage = await cache.getUsage(session.user.id, "messages");
+    if (usage >= 50) {
+      res.setHeader("Content-Type", "text/plain");
+      res.write("Thanks for Testing the beta! You've finished your free trial, see you in full launch.");
+      res.end();
+      return;
+    }
+    await cache.incrementUsage(session.user.id, "messages");
+
     const modelMessages = await convertToModelMessages(messages);
 
     // Fetch Memory

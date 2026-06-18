@@ -7,10 +7,10 @@ import { ArrowRight, Play, Moon, Sun } from "lucide-react";
 import { useTypewriter } from "../hooks/use-typewriter";
 
 const THEMES = [
-  { c: "#111", dark: "#fff", label: "Neutral" },
-  { c: "#10b981", dark: "#10b981", label: "Emerald" },
-  { c: "#8b5cf6", dark: "#8b5cf6", label: "Violet" },
-  { c: "#f59e0b", dark: "#f59e0b", label: "Amber" },
+  { c: "#111111", dark: "#ffffff", label: "Neutral" },
+  { c: "#4A6FA5", dark: "#7B93FF", label: "Azure" },
+  { c: "#2D6A4F", dark: "#5DDCCC", label: "Emerald" },
+  { c: "#8B5CF6", dark: "#FF7BAA", label: "Magenta" },
 ];
 
 export default function LandingPage() {
@@ -27,11 +27,18 @@ export default function LandingPage() {
     const color = isDark ? activeTheme.dark : activeTheme.c;
     document.documentElement.style.setProperty("--accent", color);
     document.documentElement.style.setProperty("--accent-fg", activeTheme.label === "Neutral" ? (isDark ? "#000" : "#fff") : "#fff");
-    document.documentElement.style.setProperty("--bg", isDark ? "#000000" : "#f2f6fc");
-    document.documentElement.style.setProperty("--bg-secondary", isDark ? "#0a0a0a" : "#ffffff");
+    
+    // Mix the accent color subtly into the background
+    const bgMixDark = `color-mix(in srgb, ${color} 4%, #000000)`;
+    const bgMixLight = `color-mix(in srgb, ${color} 5%, #f2f6fc)`;
+    const bgSecMixDark = `color-mix(in srgb, ${color} 5%, #0a0a0a)`;
+    const bgSecMixLight = `color-mix(in srgb, ${color} 5%, #ffffff)`;
+    
+    document.documentElement.style.setProperty("--bg", isDark ? bgMixDark : bgMixLight);
+    document.documentElement.style.setProperty("--bg-secondary", isDark ? bgSecMixDark : bgSecMixLight);
     document.documentElement.style.setProperty("--fg-primary", isDark ? "#ffffff" : "#111111");
     document.documentElement.style.setProperty("--fg-secondary", isDark ? "#888888" : "#666666");
-    document.documentElement.style.setProperty("--border-color", isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)");
+    document.documentElement.style.setProperty("--border-color", isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)");
   }, [activeTheme, isDark]);
 
   const toggleDarkMode = () => {
@@ -87,50 +94,7 @@ function Navbar() {
 }
 
 function HeroSection() {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const targetTimeRef = useRef<number>(0);
-  const isUpdatingRef = useRef<boolean>(false);
-
   const { displayed, done } = useTypewriter("Work at\nInhumane\nSpeed.", 45, 400);
-
-  // Optimized Scrubber
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    const handleMouseMove = (e: MouseEvent) => {
-      if (window.innerWidth < 1024) return;
-
-      const percentage = Math.max(0, Math.min(e.clientX / window.innerWidth, 1));
-      targetTimeRef.current = percentage * (video.duration || 1);
-
-      if (!isUpdatingRef.current) {
-        isUpdatingRef.current = true;
-        requestAnimationFrame(() => {
-          if (video.duration && Math.abs(video.currentTime - targetTimeRef.current) > 0.08) {
-            video.currentTime = targetTimeRef.current;
-          }
-          isUpdatingRef.current = false;
-        });
-      }
-    };
-
-    const handleResize = () => {
-      if (window.innerWidth < 1024 && video.paused) {
-        video.autoplay = true;
-        video.play().catch(() => {});
-      }
-    };
-
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("resize", handleResize);
-    handleResize();
-
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("resize", handleResize);
-    };
-  }, []);
 
   return (
     <section className="relative pt-40 pb-20 min-h-[90vh] flex flex-col justify-center overflow-hidden w-full">
@@ -138,12 +102,13 @@ function HeroSection() {
       {/* Background Graphic & Video Wrapper (Full Width) */}
       <div className="absolute inset-0 z-0 pointer-events-none flex items-center justify-end opacity-80 dark:opacity-40 mix-blend-multiply dark:mix-blend-luminosity">
         <video
-          ref={videoRef}
+          autoPlay
+          loop
           muted
           playsInline
           preload="auto"
           className="w-full h-full object-cover object-right"
-          src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260601_110537_3a579fa0-7bbc-4d94-9d25-0e816c7840f5.mp4"
+          src="/hero-loop.mp4"
         />
         <div 
           className="absolute inset-0 transition-colors duration-700" 
@@ -266,7 +231,7 @@ function FeatureSection() {
           <img 
             alt="Conceptual architecture visualization" 
             className="w-full h-auto object-cover transform group-hover:scale-105 transition-transform duration-700 ease-out" 
-            src="https://lh3.googleusercontent.com/aida-public/AB6AXuAQQD34bPZx6pDS6oERCWIOLeV5P_B6Y5S2TjYY-0QroxT3oRY6hwc5NOACpl4W3EVSAgZJoi_31V_G94BCZA0NMgx_FGIxp0y2AenMenQTPa1bVsrbBRrlNNhdJndg1Rmez1-PTz2qqXBKnRS-qTrNz-4-_iVhWNtgAmNkNR_xMswp_lg-qIci2RDxzQ1b-rfBm6aOjcJ7f9rRJpfC5FtQ-TzUzWUiYG9Xb2FSemkBLnzAdwsLsyabalWS9MT5uOMoEtzPq3VfYIfc"
+            src="/pure_flow.png"
           />
           <div 
             className="absolute inset-0 mix-blend-overlay opacity-0 group-hover:opacity-40 transition-opacity duration-500" 
@@ -347,35 +312,32 @@ function AtmosphereSection({ activeTheme, setActiveTheme, isDark, toggleDarkMode
           </div>
         </motion.div>
 
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.95 }}
-          whileInView={{ opacity: 1, scale: 1 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.8 }}
-          className="order-1 lg:order-2 relative group cursor-pointer"
-        >
-          <div 
-            className="rounded-2xl overflow-hidden aspect-video flex items-center justify-center border transition-colors duration-700"
-            style={{ borderColor: "var(--border-color)", background: "var(--bg)" }}
-          >
-            <img 
-              alt="Dynamic fluid visualization" 
-              className={`w-full h-full object-cover transition-opacity duration-700 mix-blend-multiply dark:mix-blend-screen ${activeTheme.label === "Neutral" ? "opacity-60" : "opacity-40"}`} 
-              src="https://lh3.googleusercontent.com/aida-public/AB6AXuA4ntGq6A__72tDNPlp2MloFi_EOaJvsb_AkqPTZkytdR2n1eULG6edH9XIZMnbx7jOv8up2d9CgOV01sh9gEdGL3dh2xerKNFmCR9wWVCehQ4ECgK8Qka0cThdXLq14q64aCr9oQpwTcBU0g75ld_oFdBbVkhnq0_SSjh5998z2QYf3nLOzbXORG_HJE_nOrGNnPdeT6mFEeqXf1YrBxtH-sGv-_h_2wRmKhDP4bV_2wLwTLg9R29gRfpchhgQLGYOu5PkMgqKqFko"
-            />
-            {/* Color Overlay */}
+          <Link href="/chat" className="order-1 lg:order-2 relative group block">
             <div 
-              className="absolute inset-0 mix-blend-overlay opacity-40 transition-colors duration-700"
-              style={{ background: activeTheme.label === "Neutral" ? "transparent" : "var(--accent)" }}
-            />
-            
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-16 h-16 rounded-full border flex items-center justify-center backdrop-blur-sm group-hover:scale-110 transition-transform bg-black/10 dark:bg-white/10" style={{ borderColor: "var(--border-color)" }}>
-                <Play className="w-6 h-6 ml-1 transition-colors duration-700" style={{ color: "var(--fg-primary)" }} />
+              className="rounded-3xl overflow-hidden flex flex-col p-6 lg:p-8 transition-colors duration-700 shadow-2xl"
+              style={{ borderColor: "var(--border-color)", background: "var(--bg)", border: `1px solid var(--border-color)` }}
+            >
+              <div className="text-center mb-8 mt-4">
+                <h4 className="text-2xl font-semibold tracking-tight transition-colors duration-700 mb-2" style={{ color: "var(--fg-primary)" }}>Good evening.</h4>
+                <p className="text-sm transition-colors duration-700" style={{ color: "var(--fg-secondary)" }}>What are we working on?</p>
               </div>
+              
+              {/* Input Mock */}
+              <div className="rounded-2xl p-4 transition-colors duration-700 flex items-center gap-3 shadow-inner" style={{ background: "var(--bg-secondary)", border: `1px solid var(--border-color)` }}>
+                 <div className="flex-1 text-sm transition-colors duration-700" style={{ color: "var(--fg-secondary)" }}>Type a command or ask a question...</div>
+                 <div className="w-8 h-8 rounded-full flex items-center justify-center transition-colors duration-700" style={{ background: "var(--accent)", color: "var(--accent-fg)" }}>
+                   <ArrowRight size={14} />
+                 </div>
+              </div>
+              
+              {/* Chips Mock */}
+              <div className="flex gap-2 mt-4 justify-center">
+                <div className="px-4 py-2 rounded-full text-xs font-medium transition-colors duration-700" style={{ border: `1px solid var(--border-color)`, color: "var(--fg-primary)" }}>Read Inbox</div>
+                <div className="px-4 py-2 rounded-full text-xs font-medium transition-colors duration-700" style={{ border: `1px solid var(--border-color)`, color: "var(--fg-primary)" }}>Check Schedule</div>
+              </div>
+
             </div>
-          </div>
-        </motion.div>
+          </Link>
       </div>
     </section>
   );
