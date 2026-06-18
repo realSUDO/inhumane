@@ -378,6 +378,8 @@ export default function ChatPage() {
 
     // Trust mode toggle
     if (input.trim() === "/trust") { setTrustMode(!trustMode); setInput(""); return; }
+    // Catch partial /trust typing (autosuggest active)
+    if (input.startsWith("/") && "/trust".startsWith(input.toLowerCase()) && input.length > 1) { setTrustMode(true); setInput(""); return; }
 
     // Dev shortcuts - inject inline cards
     if (input.trim() === "sm") { setShowEmailModal(true); setShowChat(true); setInput(""); return; }
