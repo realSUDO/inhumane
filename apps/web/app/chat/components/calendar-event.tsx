@@ -40,8 +40,34 @@ function EmailTagInput({ isDark }: { isDark: boolean }) {
   );
 }
 
-export function CalendarEvent({ isDark, onClose, onExpand }: { isDark: boolean; onClose: () => void; onExpand?: () => void }) {
+export function CalendarEvent({ isDark, onClose, onExpand, prefill }: { isDark: boolean; onClose: () => void; onExpand?: () => void; prefill?: { summary?: string; start?: string; end?: string; description?: string; guests?: string[] } }) {
   const tc = (l: string, d: string) => isDark ? d : l;
+  const [title, setTitle] = useState(prefill?.summary || "");
+  const [date, setDate] = useState(prefill?.start ? prefill.start.split("T")[0] : "");
+  const [startTime, setStartTime] = useState(prefill?.start ? prefill.start.split("T")[1]?.slice(0, 5) || "" : "");
+  const [endTime, setEndTime] = useState(prefill?.end ? prefill.end.split("T")[1]?.slice(0, 5) || "" : "");
+  const [desc, setDesc] = useState(prefill?.description || "");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const handleSave = async () => {
+    if (!title) return;
+    setSaving(true);
+    const start = date && startTime ? new Date(`${date}T${startTime}`).toISOString() : new Date().toISOString();
+    const end = date && endTime ? new Date(`${date}T${endTime}`).toISOString() : new Date(Date.now() + 3600000).toISOString();
+    const res = await fetch("/api/calendar/events", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ summary: title, description: desc, start: { dateTime: start }, end: { dateTime: end } }) });
+    if (res.ok) setSaved(true);
+    setSaving(false);
+  };
+
+  if (saved) return (
+    <div style={{ animation: "fadeIn 0.3s ease-out" }} className="w-full max-w-[600px]">
+      <div className="rounded-2xl px-5 py-4 flex items-center gap-2" style={{ background: tc("rgba(16,185,129,0.05)", "rgba(16,185,129,0.1)"), border: `1px solid ${tc("rgba(16,185,129,0.2)", "rgba(16,185,129,0.3)")}` }}>
+        <span className="text-emerald-600 text-[14px]">✓</span>
+        <span className="text-[13px]" style={{ color: tc("#065f46", "#6ee7b7") }}>Event &quot;{title}&quot; scheduled</span>
+      </div>
+    </div>
+  );
 
   return (
     <div style={{ animation: "fadeIn 0.3s ease-out" }} className="w-full max-w-[600px]">
@@ -58,17 +84,17 @@ export function CalendarEvent({ isDark, onClose, onExpand }: { isDark: boolean; 
           </div>
         </div>
         <div className="px-5 pb-3">
-          <input className="w-full bg-transparent outline-none text-[18px] font-normal" style={{ color: tc("#111", "#eee") }} placeholder="Add title" />
+          <input value={title} onChange={e => setTitle(e.target.value)} className="w-full bg-transparent outline-none text-[18px] font-normal" style={{ color: tc("#111", "#eee") }} placeholder="Add title" />
           <div className="h-[2px] mt-2 rounded-full" style={{ background: "var(--accent, #4285f4)" }} />
         </div>
         <div className="px-5 py-3 flex items-center gap-3" style={{ borderTop: `1px solid ${tc("rgba(0,0,0,0.04)", "rgba(255,255,255,0.04)")}` }}>
           <img src="/calendar.png" alt="" className="w-4 h-4 object-contain" />
           <div className="flex items-center gap-2 flex-1">
-            <input type="date" className="bg-transparent outline-none text-[13px] px-2 py-1.5 rounded-lg" style={{ color: tc("#111", "#eee"), background: tc("rgba(0,0,0,0.02)", "rgba(255,255,255,0.04)") }} />
+            <input type="date" value={date} onChange={e => setDate(e.target.value)} className="bg-transparent outline-none text-[13px] px-2 py-1.5 rounded-lg" style={{ color: tc("#111", "#eee"), background: tc("rgba(0,0,0,0.02)", "rgba(255,255,255,0.04)") }} />
             <span style={{ color: tc("#999", "#666") }}>·</span>
-            <input type="time" className="bg-transparent outline-none text-[13px] px-2 py-1.5 rounded-lg" style={{ color: tc("#111", "#eee"), background: tc("rgba(0,0,0,0.02)", "rgba(255,255,255,0.04)") }} />
+            <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="bg-transparent outline-none text-[13px] px-2 py-1.5 rounded-lg" style={{ color: tc("#111", "#eee"), background: tc("rgba(0,0,0,0.02)", "rgba(255,255,255,0.04)") }} />
             <span className="text-[12px]" style={{ color: tc("#999", "#666") }}>→</span>
-            <input type="time" className="bg-transparent outline-none text-[13px] px-2 py-1.5 rounded-lg" style={{ color: tc("#111", "#eee"), background: tc("rgba(0,0,0,0.02)", "rgba(255,255,255,0.04)") }} />
+            <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="bg-transparent outline-none text-[13px] px-2 py-1.5 rounded-lg" style={{ color: tc("#111", "#eee"), background: tc("rgba(0,0,0,0.02)", "rgba(255,255,255,0.04)") }} />
           </div>
         </div>
         <div className="px-5 py-3 flex items-center gap-3" style={{ borderTop: `1px solid ${tc("rgba(0,0,0,0.04)", "rgba(255,255,255,0.04)")}` }}>
@@ -76,11 +102,11 @@ export function CalendarEvent({ isDark, onClose, onExpand }: { isDark: boolean; 
           <EmailTagInput isDark={isDark} />
         </div>
         <div className="px-5 py-3" style={{ borderTop: `1px solid ${tc("rgba(0,0,0,0.04)", "rgba(255,255,255,0.04)")}` }}>
-          <textarea className="w-full bg-transparent outline-none text-[13px] resize-none min-h-[60px] leading-[1.6]" style={{ color: tc("#333", "#ddd") }} placeholder="Add description or notes..." />
+          <textarea value={desc} onChange={e => setDesc(e.target.value)} className="w-full bg-transparent outline-none text-[13px] resize-none min-h-[60px] leading-[1.6]" style={{ color: tc("#333", "#ddd") }} placeholder="Add description or notes..." />
         </div>
         <div className="px-5 py-3 flex items-center justify-end gap-3" style={{ borderTop: `1px solid ${tc("rgba(0,0,0,0.06)", "rgba(255,255,255,0.05)")}` }}>
           <button onClick={onClose} className="px-4 py-2 rounded-full text-[12px] font-medium hover:opacity-70 transition-opacity" style={{ color: tc("#555", "#aaa") }}>Cancel</button>
-          <button className="px-5 py-2 rounded-full text-[12px] font-semibold text-white" style={{ background: "var(--accent, #4285f4)" }}>Save</button>
+          <button onClick={handleSave} disabled={saving} className="px-5 py-2 rounded-full text-[12px] font-semibold text-white disabled:opacity-50" style={{ background: "var(--accent, #4285f4)" }}>{saving ? "Saving..." : "Save"}</button>
         </div>
       </div>
     </div>

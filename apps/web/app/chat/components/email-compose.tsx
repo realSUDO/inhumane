@@ -10,8 +10,8 @@ function SendArrowIcon() {
   );
 }
 
-function EmailTagInput({ isDark }: { isDark: boolean }) {
-  const [emails, setEmails] = useState<string[]>([]);
+function EmailTagInput({ isDark, initial }: { isDark: boolean; initial?: string[] }) {
+  const [emails, setEmails] = useState<string[]>(initial || []);
   const [current, setCurrent] = useState("");
   const tc = (l: string, d: string) => isDark ? d : l;
 
@@ -44,8 +44,29 @@ function EmailTagInput({ isDark }: { isDark: boolean }) {
   );
 }
 
-export function EmailCompose({ isDark, onClose }: { isDark: boolean; onClose: () => void }) {
+export function EmailCompose({ isDark, onClose, prefill }: { isDark: boolean; onClose: () => void; prefill?: { to?: string; subject?: string; body?: string } }) {
   const tc = (l: string, d: string) => isDark ? d : l;
+  const [subject, setSubject] = useState(prefill?.subject || "");
+  const [body, setBody] = useState(prefill?.body || "");
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const toRef = { current: prefill?.to ? [prefill.to] : [] };
+
+  const handleSend = async () => {
+    setSending(true);
+    const res = await fetch("/api/send-email", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ to: toRef.current[0] || prefill?.to, subject, body }) });
+    if (res.ok) setSent(true);
+    setSending(false);
+  };
+
+  if (sent) return (
+    <div style={{ animation: "fadeIn 0.3s ease-out" }} className="max-w-[500px]">
+      <div className="rounded-2xl px-5 py-4 flex items-center gap-2" style={{ background: tc("rgba(16,185,129,0.05)", "rgba(16,185,129,0.1)"), border: `1px solid ${tc("rgba(16,185,129,0.2)", "rgba(16,185,129,0.3)")}` }}>
+        <span className="text-emerald-600 text-[14px]">✓</span>
+        <span className="text-[13px]" style={{ color: tc("#065f46", "#6ee7b7") }}>Email sent to {prefill?.to}</span>
+      </div>
+    </div>
+  );
 
   return (
     <div style={{ animation: "fadeIn 0.3s ease-out" }} className="max-w-[500px]">
@@ -59,18 +80,18 @@ export function EmailCompose({ isDark, onClose }: { isDark: boolean; onClose: ()
         </div>
         <div className="px-4 py-2 flex items-center gap-3" style={{ borderBottom: `1px solid ${tc("rgba(0,0,0,0.04)", "rgba(255,255,255,0.04)")}` }}>
           <span className="text-[12px]" style={{ color: tc("#777", "#888") }}>To</span>
-          <EmailTagInput isDark={isDark} />
+          <EmailTagInput isDark={isDark} initial={prefill?.to ? [prefill.to] : undefined} />
         </div>
         <div className="px-4 py-2" style={{ borderBottom: `1px solid ${tc("rgba(0,0,0,0.04)", "rgba(255,255,255,0.04)")}` }}>
-          <input className="w-full bg-transparent outline-none text-[13px]" style={{ color: tc("#111", "#eee") }} placeholder="Subject" />
+          <input value={subject} onChange={e => setSubject(e.target.value)} className="w-full bg-transparent outline-none text-[13px]" style={{ color: tc("#111", "#eee") }} placeholder="Subject" />
         </div>
         <div className="px-4 py-3">
-          <textarea className="w-full bg-transparent outline-none text-[13px] resize-none min-h-[140px] leading-[1.7]" style={{ color: tc("#222", "#ddd") }} placeholder="Compose email..." />
+          <textarea value={body} onChange={e => setBody(e.target.value)} className="w-full bg-transparent outline-none text-[13px] resize-none min-h-[140px] leading-[1.7]" style={{ color: tc("#222", "#ddd") }} placeholder="Compose email..." />
         </div>
         <div className="px-4 py-2.5 flex items-center justify-between" style={{ borderTop: `1px solid ${tc("rgba(0,0,0,0.06)", "rgba(255,255,255,0.05)")}` }}>
           <button onClick={onClose} className="text-[12px] px-3 py-1.5 rounded-lg hover:opacity-70 transition-opacity" style={{ color: tc("#666", "#888") }}>Discard</button>
-          <button className="px-5 py-2 rounded-full text-[12px] font-semibold text-white flex items-center gap-1.5" style={{ background: "#1a73e8" }}>
-            <SendArrowIcon /> Send
+          <button onClick={handleSend} disabled={sending} className="px-5 py-2 rounded-full text-[12px] font-semibold text-white flex items-center gap-1.5" style={{ background: "#1a73e8" }}>
+            <SendArrowIcon /> {sending ? "Sending..." : "Send"}
           </button>
         </div>
       </div>

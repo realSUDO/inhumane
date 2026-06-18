@@ -59,9 +59,9 @@ Rules:
 - Write naturally, match the tone to the context (casual for friends, professional for work)
 - Generate a clear, compelling subject line
 - Body should be well-written, appropriate length (not too short, not too long)
-- Output ONLY the draft block, no other text before or after:
+- Output ONLY the action block, no other text before or after:
 
-\`\`\`email-draft
+\`\`\`email-action
 {"to":"email@example.com","subject":"Subject line","body":"Full email body here"}
 \`\`\``;
 
@@ -74,10 +74,10 @@ Rules:
 - Parse the date/time from conversation. If no time given, default to 10:00 AM, 1 hour duration.
 - If no date given, assume today or next occurrence of the day mentioned.
 - Use ISO 8601 format for start/end times.
-- Output ONLY the event block, no other text before or after:
+- Output ONLY the action block, no other text before or after:
 
-\`\`\`calendar-event
-{"summary":"Event title","start":"2024-01-15T10:00:00","end":"2024-01-15T11:00:00","description":"Optional description","location":"Optional location"}
+\`\`\`calendar-action
+{"summary":"Event title","start":"2024-01-15T10:00:00","end":"2024-01-15T11:00:00","description":"Optional description","guests":["email@example.com"]}
 \`\`\``;
 
 // ─── TOOL EXECUTION ───
