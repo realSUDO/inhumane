@@ -61,11 +61,11 @@ export function CalendarEvent({ isDark, onClose, onExpand, prefill }: { isDark: 
   };
 
   if (saved) return (
-    <div style={{ animation: "fadeIn 0.3s ease-out" }} className="w-full max-w-[600px]">
-      <div className="rounded-2xl px-5 py-4 flex items-center gap-2" style={{ background: tc("rgba(16,185,129,0.05)", "rgba(16,185,129,0.1)"), border: `1px solid ${tc("rgba(16,185,129,0.2)", "rgba(16,185,129,0.3)")}` }}>
-        <span className="text-emerald-600 text-[14px]">✓</span>
-        <span className="text-[13px]" style={{ color: tc("#065f46", "#6ee7b7") }}>Event &quot;{title}&quot; scheduled</span>
+    <div className="flex items-center gap-2 py-1.5 opacity-70" style={{ animation: "fadeIn 0.3s ease-out" }}>
+      <div className="w-3.5 h-3.5 rounded-full flex items-center justify-center" style={{ background: "var(--accent, #4285f4)" }}>
+        <svg width="8" height="8" viewBox="0 0 12 12" fill="none" stroke="#fff" strokeWidth={2.5}><path d="M2 6l3 3 5-5"/></svg>
       </div>
+      <span className="text-[12px]" style={{ color: tc("#555", "#aaa") }}>&quot;{title}&quot; scheduled</span>
     </div>
   );
 

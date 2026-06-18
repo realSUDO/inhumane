@@ -15,25 +15,36 @@ type User = { id: string; name: string; email: string; image?: string };
 
 function ThreadMenu({ thread, onAction, isRenaming, setRenaming }: { thread: Thread; onAction: (action: string, id: string, data?: any) => void; isRenaming: boolean; setRenaming: (v: boolean) => void }) {
   const [open, setOpen] = useState(false);
+  const [flipUp, setFlipUp] = useState(false);
+  const btnRef = useRef<HTMLButtonElement>(null);
+
+  const handleOpen = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect();
+      setFlipUp(rect.bottom + 180 > window.innerHeight);
+    }
+    setOpen(!open);
+  };
 
   return (
     <div className="relative">
-      <button data-menu-trigger onClick={e => { e.stopPropagation(); setOpen(!open); }} className="p-1 rounded transition-colors" style={{ color: "var(--fg-secondary, #999)" }}>
+      <button ref={btnRef} data-menu-trigger onClick={handleOpen} className="p-1 rounded transition-colors" style={{ color: "var(--fg-secondary, #999)" }}>
         <MoreHorizontalIcon size={14} />
       </button>
       {open && (
-        <div className="absolute right-0 top-7 z-50 w-36 bg-[#f4f4f8] border border-[#e8e8ec] rounded-lg shadow-2xl py-1 animate-[fadeIn_0.15s_ease-out]" onMouseLeave={() => setOpen(false)}>
-          <button onClick={e => { e.stopPropagation(); setRenaming(true); setOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[#1a1a2e] hover:bg-[#f4f4f8] transition-colors">
+        <div className={`absolute right-0 z-50 w-36 rounded-lg shadow-2xl py-1 animate-[fadeIn_0.15s_ease-out] ${flipUp ? "bottom-7" : "top-7"}`} style={{ background: "var(--bg, #f4f4f8)", border: "1px solid var(--fg-secondary, #e8e8ec)" }} onMouseLeave={() => setOpen(false)}>
+          <button onClick={e => { e.stopPropagation(); setRenaming(true); setOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:opacity-70 transition-opacity" style={{ color: "var(--fg-primary, #1a1a2e)" }}>
             <Edit02Icon size={12} /> Rename
           </button>
-          <button onClick={e => { e.stopPropagation(); onAction("pin", thread.id); setOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[#1a1a2e] hover:bg-[#f4f4f8] transition-colors">
+          <button onClick={e => { e.stopPropagation(); onAction("pin", thread.id); setOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:opacity-70 transition-opacity" style={{ color: "var(--fg-primary, #1a1a2e)" }}>
             <PinIcon size={12} /> {thread.pinned ? "Unpin" : "Pin"}
           </button>
-          <button onClick={e => { e.stopPropagation(); onAction("archive", thread.id); setOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[#1a1a2e] hover:bg-[#f4f4f8] transition-colors">
+          <button onClick={e => { e.stopPropagation(); onAction("archive", thread.id); setOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:opacity-70 transition-opacity" style={{ color: "var(--fg-primary, #1a1a2e)" }}>
             <Archive01Icon size={12} /> Archive
           </button>
-          <div className="border-t border-[#e8e8ec] my-1" />
-          <button onClick={e => { e.stopPropagation(); onAction("delete", thread.id); setOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-500 hover:bg-red-50 transition-colors">
+          <div className="my-1" style={{ borderTop: "1px solid var(--fg-secondary, #e8e8ec)", opacity: 0.3 }} />
+          <button onClick={e => { e.stopPropagation(); onAction("delete", thread.id); setOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-500 hover:opacity-70 transition-opacity">
             <Delete02Icon size={12} /> Delete
           </button>
         </div>
@@ -329,26 +340,29 @@ export default function ChatPage() {
           ))}
         </div>
 
-        {/* Tint Dots */}
-        <div className="flex items-center gap-2.5 px-1">
-          {tints.map(t => (
-            <button key={t.c} onClick={() => { document.documentElement.style.setProperty("--accent", t.c); document.documentElement.style.setProperty("--bg", t.bg); }} className="w-[22px] h-[22px] rounded-full hover:scale-[1.2] active:scale-90 transition-all cursor-pointer" style={{ background: t.c, boxShadow: `0 2px 8px ${t.c}40` }} />
-          ))}
-          <button onClick={() => { const next = !isDark; setIsDark(next); document.documentElement.classList.toggle("dark", next); document.documentElement.style.setProperty("--bg", next ? "#080b14" : "#f2f6fc"); document.documentElement.style.setProperty("--accent", next ? "#7B93FF" : "#4A6FA5"); }} className="w-[22px] h-[22px] rounded-full hover:scale-[1.2] active:scale-90 transition-all cursor-pointer" style={{ background: tc("#111", "#fff"), boxShadow: tc("0 2px 8px rgba(0,0,0,0.2)", "0 2px 8px rgba(255,255,255,0.3)") }} />
-        </div>
-
-        {user && (
-          <div className="flex items-center gap-2.5 px-1 pt-3" style={{ borderTop: `1px solid ${tc("rgba(0,0,0,0.05)", "rgba(255,255,255,0.05)")}` }}>
-            {user.image && <img src={user.image} alt="" className="w-8 h-8 rounded-full" />}
-            <div className="flex-1 min-w-0">
-              <p className="text-[12px] font-medium truncate" style={{ color: tc("#222", "#ddd") }}>{user.name}</p>
-              <p className="text-[10px] truncate" style={{ color: tc("#999", "#555") }}>{user.email}</p>
+        {/* Accent & Profile */}
+        <div className="px-1 pt-3 space-y-3" style={{ borderTop: `1px solid ${tc("rgba(0,0,0,0.05)", "rgba(255,255,255,0.05)")}` }}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {tints.map(t => (
+                <button key={t.c} onClick={() => { document.documentElement.style.setProperty("--accent", t.c); document.documentElement.style.setProperty("--bg", t.bg); }} className="w-[18px] h-[18px] rounded-full hover:scale-[1.15] active:scale-90 transition-all cursor-pointer" style={{ background: t.c }} />
+              ))}
             </div>
-            <button onClick={() => { fetch("/api/auth/sign-out", { method: "POST", credentials: "include" }).then(() => { localStorage.removeItem("inhumane-onboarded"); window.location.href = "/"; }); }} className="opacity-30 hover:opacity-70 transition-opacity">
-              <Logout03Icon size={15} />
-            </button>
+            <button onClick={() => { const next = !isDark; setIsDark(next); document.documentElement.classList.toggle("dark", next); document.documentElement.style.setProperty("--bg", next ? "#080b14" : "#f2f6fc"); document.documentElement.style.setProperty("--accent", next ? "#7B93FF" : "#4A6FA5"); }} className="w-[18px] h-[18px] rounded-full hover:scale-[1.15] active:scale-90 transition-all cursor-pointer" style={{ background: tc("#111", "#fff") }} />
           </div>
-        )}
+          {user && (
+            <div className="flex items-center gap-2.5">
+              {user.image && <img src={user.image} alt="" className="w-7 h-7 rounded-full" />}
+              <div className="flex-1 min-w-0">
+                <p className="text-[12px] font-medium truncate" style={{ color: tc("#222", "#ddd") }}>{user.name}</p>
+                <p className="text-[10px] truncate" style={{ color: tc("#999", "#555") }}>{user.email}</p>
+              </div>
+              <button onClick={() => { fetch("/api/auth/sign-out", { method: "POST", credentials: "include" }).then(() => { localStorage.removeItem("inhumane-onboarded"); window.location.href = "/"; }); }} className="opacity-30 hover:opacity-70 transition-opacity">
+                <Logout03Icon size={14} />
+              </button>
+            </div>
+          )}
+        </div>
       </aside>
 
       <main className="md:ml-[270px] flex-1 h-screen flex flex-col relative overflow-hidden">
@@ -403,22 +417,22 @@ export default function ChatPage() {
             <section className="flex-1 overflow-y-auto px-8 pt-8 pb-40" style={{ scrollbarWidth: "none" }}>
               <div className="max-w-[680px] mx-auto flex flex-col gap-7">
                 {messages.map(message => (
-                  <div key={message.id} style={{ animation: "fadeIn 0.3s ease-out" }}>
+                  <div key={message.id} style={{ animation: "fadeIn 0.25s ease-out" }}>
                     {message.role === "user" ? (
                       <div className="flex justify-end">
-                        <div className="max-w-[75%] rounded-2xl rounded-br-lg px-4 py-3" style={{ background: "var(--accent, #111)", color: "#fff", opacity: 1 }}>
-                          {message.parts.map((part, i) => part.type === "text" ? <p key={i} className="text-[14px] leading-[1.6] whitespace-pre-wrap">{part.text}</p> : null)}
+                        <div className="max-w-[70%] rounded-[18px] rounded-br-[6px] px-4 py-2.5" style={{ background: "var(--accent, #111)", color: "#fff" }}>
+                          {message.parts.map((part, i) => part.type === "text" ? <p key={i} className="text-[13.5px] leading-[1.6] whitespace-pre-wrap">{part.text}</p> : null)}
                         </div>
                       </div>
                     ) : (
-                      <div className="flex gap-3">
-                        <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-1" style={{ background: tc("rgba(0,0,0,0.04)", "rgba(255,255,255,0.06)") }}>
-                          <span className="text-[9px] font-bold" style={{ color: tc("#888", "#888") }}>AI</span>
+                      <div className="flex gap-2.5">
+                        <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ background: tc("rgba(0,0,0,0.05)", "rgba(255,255,255,0.06)") }}>
+                          <span className="text-[8px] font-bold tracking-tight" style={{ color: tc("#777", "#999") }}>AI</span>
                         </div>
-                        <div className="flex-1 min-w-0">
+                        <div className="flex-1 min-w-0 -mt-0.5">
                           {message.parts.map((part, i) => {
-                            if (part.type === "text") return <div key={i} className="text-[14px] leading-[1.8] whitespace-pre-wrap" style={{ color: tc("#222", "#ddd") }}>{renderMessageContent(part.text)}</div>;
-                            if (part.type.startsWith("tool-")) { const p = part as any; return (<div key={i} className="mt-2 inline-flex items-center gap-1.5 text-[11px] rounded-lg px-2.5 py-1.5" style={{ background: tc("rgba(0,0,0,0.03)", "rgba(255,255,255,0.04)"), border: `1px solid ${tc("rgba(0,0,0,0.05)", "rgba(255,255,255,0.06)")}`, color: tc("#666", "#999") }}><span>⚡</span><span>{p.toolName || "Tool"}</span>{p.state === "result" && <span className="text-green-500">✓</span>}{p.state === "call" && <span className="animate-pulse">…</span>}</div>); }
+                            if (part.type === "text") return <div key={i} className="text-[13.5px] leading-[1.75] whitespace-pre-wrap" style={{ color: tc("#2a2a2a", "#ddd") }}>{renderMessageContent(part.text)}</div>;
+                            if (part.type.startsWith("tool-")) { const p = part as any; return (<div key={i} className="mt-1.5 inline-flex items-center gap-1.5 text-[10px] rounded-md px-2 py-1" style={{ background: tc("rgba(0,0,0,0.03)", "rgba(255,255,255,0.04)"), color: tc("#888", "#888") }}><span>⚡</span><span>{p.toolName || "Tool"}</span>{p.state === "result" && <span style={{ color: "var(--accent)" }}>✓</span>}{p.state === "call" && <span className="animate-pulse">…</span>}</div>); }
                             return null;
                           })}
                         </div>
@@ -427,14 +441,14 @@ export default function ChatPage() {
                   </div>
                 ))}
                 {(status === "submitted" || status === "streaming") && messages[messages.length - 1]?.role !== "assistant" && (
-                  <div className="flex gap-3" style={{ animation: "fadeIn 0.2s ease-out" }}>
-                    <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0" style={{ background: tc("rgba(0,0,0,0.04)", "rgba(255,255,255,0.06)") }}>
-                      <span className="text-[9px] font-bold" style={{ color: "#888" }}>AI</span>
+                  <div className="flex gap-2.5" style={{ animation: "fadeIn 0.2s ease-out" }}>
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0" style={{ background: tc("rgba(0,0,0,0.05)", "rgba(255,255,255,0.06)") }}>
+                      <span className="text-[8px] font-bold tracking-tight" style={{ color: tc("#777", "#999") }}>AI</span>
                     </div>
-                    <div className="flex items-center gap-1.5 pt-1">
-                      <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "var(--accent, #999)", animationDelay: "0ms" }} />
-                      <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "var(--accent, #999)", animationDelay: "150ms" }} />
-                      <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "var(--accent, #999)", animationDelay: "300ms" }} />
+                    <div className="flex items-center gap-1 pt-2">
+                      <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "var(--accent, #999)", animationDelay: "0ms", opacity: 0.6 }} />
+                      <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "var(--accent, #999)", animationDelay: "150ms", opacity: 0.6 }} />
+                      <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "var(--accent, #999)", animationDelay: "300ms", opacity: 0.6 }} />
                     </div>
                   </div>
                 )}
@@ -445,16 +459,16 @@ export default function ChatPage() {
               </div>
             </section>
 
-            <footer className="absolute bottom-0 left-0 w-full px-8 pb-6 pt-4 pointer-events-none z-40" style={{ background: `linear-gradient(to top, var(--bg) 50%, transparent)` }}>
+            <footer className="absolute bottom-0 left-0 w-full px-6 pb-5 pt-4 pointer-events-none z-40" style={{ background: `linear-gradient(to top, var(--bg) 60%, transparent)` }}>
               <div className="max-w-[680px] mx-auto pointer-events-auto">
-                <form onSubmit={handleSubmit} className="flex items-center gap-2.5 rounded-2xl px-4 py-2" style={{ background: tc("rgba(255,255,255,0.85)", "rgba(20,22,30,0.85)"), backdropFilter: "blur(16px)", border: `1px solid ${tc("rgba(0,0,0,0.06)", "rgba(255,255,255,0.06)")}`, boxShadow: tc("0 4px 20px rgba(0,0,0,0.04)", "0 4px 20px rgba(0,0,0,0.4)") }}>
+                <form onSubmit={handleSubmit} className="flex items-center gap-2 rounded-2xl px-4 py-1.5" style={{ background: tc("rgba(255,255,255,0.9)", "rgba(20,22,30,0.9)"), backdropFilter: "blur(20px)", border: `1px solid ${tc("rgba(0,0,0,0.07)", "rgba(255,255,255,0.07)")}`, boxShadow: tc("0 2px 16px rgba(0,0,0,0.04)", "0 2px 16px rgba(0,0,0,0.5)") }}>
                   <input
                     value={input}
                     onChange={e => setInput(e.target.value)}
                     onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(e); } }}
-                    className="flex-1 bg-transparent text-[14px] outline-none py-2.5 px-2"
+                    className="flex-1 bg-transparent text-[13.5px] outline-none py-2.5 px-1"
                     style={{ color: tc("#111", "#e5e5e5") }}
-                    placeholder="Reply..."
+                    placeholder="Message Inhumane..."
                     disabled={status !== "ready"}
                   />
                   <button type="submit" disabled={status !== "ready" || !input.trim()} className="w-8 h-8 rounded-full text-white flex items-center justify-center disabled:opacity-15 hover:scale-105 active:scale-95 transition-all text-[12px]" style={{ background: "var(--accent, #111)" }}>↑</button>
