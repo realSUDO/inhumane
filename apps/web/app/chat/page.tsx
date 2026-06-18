@@ -67,12 +67,12 @@ function ThreadMenu({ thread, onAction, isRenaming, setRenaming }: { thread: Thr
 
 function EmailActionCard({ data }: { data: { to?: string; subject?: string; body?: string } }) {
   const dark = typeof document !== "undefined" && document.documentElement.classList.contains("dark");
-  return <EmailCompose isDark={dark} onClose={() => {}} prefill={data} />;
+  return <EmailCompose isDark={dark} onClose={() => { }} prefill={data} />;
 }
 
 function CalendarActionCard({ data }: { data: { summary?: string; start?: string; end?: string; description?: string; guests?: string[] } }) {
   const dark = typeof document !== "undefined" && document.documentElement.classList.contains("dark");
-  return <CalendarEvent isDark={dark} onClose={() => {}} prefill={data} />;
+  return <CalendarEvent isDark={dark} onClose={() => { }} prefill={data} />;
 }
 
 function renderMessageParts(text: string) {
@@ -205,7 +205,7 @@ export default function ChatPage() {
   const [user, setUser] = useState<User | null>(null);
   const [showChat, setShowChat] = useState(false);
   const [isDark, setIsDark] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const [greetingMsg, setGreetingMsg] = useState("How can I help you get things done?");
@@ -233,8 +233,8 @@ export default function ChatPage() {
   const { messages, sendMessage, status, setMessages } = useChat({ transport });
 
   useEffect(() => {
-    fetch("/api/threads", { credentials: "include" }).then(r => r.json()).then(setThreads).catch(() => {});
-    fetch("/api/auth/get-session", { credentials: "include" }).then(r => r.json()).then(s => s?.user && setUser(s.user)).catch(() => {});
+    fetch("/api/threads", { credentials: "include" }).then(r => r.json()).then(setThreads).catch(() => { });
+    fetch("/api/auth/get-session", { credentials: "include" }).then(r => r.json()).then(s => s?.user && setUser(s.user)).catch(() => { });
 
     // Check onboarding status
     const onboarded = localStorage.getItem("inhumane-onboarded");
@@ -246,7 +246,7 @@ export default function ChatPage() {
     fetch("/api/corsair/status", { credentials: "include" }).then(r => r.json()).then(data => {
       setConnectStatus(data);
       if (data.gmail && data.googlecalendar) localStorage.setItem("inhumane-onboarded", "true");
-    }).catch(() => {});
+    }).catch(() => { });
   }
 
   useEffect(() => {
@@ -264,19 +264,19 @@ export default function ChatPage() {
     if (!activeThread) { setMessages([]); setShowChat(false); return; }
     // Skip DB load if we just created this thread (messages are already in useChat state)
     if (justCreatedRef.current) { justCreatedRef.current = false; return; }
-    
+
     setShowChat(true);
     setMessages([]); // prevent flash of old messages
-    
+
     fetch(`/api/threads/${activeThread}/messages`, { credentials: "include" })
       .then(r => r.json())
       .then((msgs: any[]) => {
         if (!Array.isArray(msgs) || msgs.length === 0) { setMessages([]); return; }
-        setMessages(msgs.map(m => ({ 
-          id: m.id, 
-          role: m.role, 
-          content: m.content, 
-          parts: [{ type: "text" as const, text: m.content }] 
+        setMessages(msgs.map(m => ({
+          id: m.id,
+          role: m.role,
+          content: m.content,
+          parts: [{ type: "text" as const, text: m.content }]
         })));
       })
       .catch(() => setMessages([]));
@@ -356,18 +356,18 @@ export default function ChatPage() {
       <div className={`fixed inset-0 pointer-events-none z-0 transition-opacity duration-1000 ${showChat ? 'opacity-[0.04] dark:opacity-[0.06]' : 'opacity-[0.15] dark:opacity-[0.3]'}`}>
         {/* Base Flow */}
         <div className="absolute inset-0"
-             style={{ 
-               background: `linear-gradient(-45deg, var(--bg), color-mix(in srgb, var(--accent) 30%, var(--bg)), var(--bg), color-mix(in srgb, var(--accent) 15%, var(--bg)))`,
-               backgroundSize: "400% 400%",
-               animation: "mesh-flow 15s ease infinite"
-             }} 
+          style={{
+            background: `linear-gradient(-45deg, var(--bg), color-mix(in srgb, var(--accent) 30%, var(--bg)), var(--bg), color-mix(in srgb, var(--accent) 15%, var(--bg)))`,
+            backgroundSize: "400% 400%",
+            animation: "mesh-flow 15s ease infinite"
+          }}
         />
         {/* Subtle Top Glow Overlay */}
         <div className="absolute top-[-20vh] left-0 w-full h-[60vh] mix-blend-screen dark:mix-blend-lighten"
-             style={{ 
-               background: "radial-gradient(100% 100% at 50% 0%, color-mix(in srgb, var(--accent) 50%, white) 0%, transparent 80%)", 
-               animation: "gemini-breathe 8s ease-in-out infinite alternate" 
-             }} 
+          style={{
+            background: "radial-gradient(100% 100% at 50% 0%, color-mix(in srgb, var(--accent) 50%, white) 0%, transparent 80%)",
+            animation: "gemini-breathe 8s ease-in-out infinite alternate"
+          }}
         />
       </div>
       {/* Noise */}
@@ -378,7 +378,7 @@ export default function ChatPage() {
         <div className={`px-1 py-0.5 flex items-center ${sidebarOpen ? 'justify-between' : 'justify-center'}`}>
           {sidebarOpen && <h1 className="text-[20px] font-semibold tracking-tight" style={{ color: tc("#111", "#f0f0f0") }}>Inhumane</h1>}
           <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-1.5 rounded-lg opacity-40 hover:opacity-80 transition-all hover:bg-black/5 dark:hover:bg-white/5 shrink-0" style={{ color: tc("#333", "#ccc") }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M4 6h16M4 12h16M4 18h16" /></svg>
           </button>
         </div>
 
