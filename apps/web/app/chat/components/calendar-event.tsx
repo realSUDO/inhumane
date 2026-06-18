@@ -2,6 +2,10 @@
 import { useState } from "react";
 import { PlusSignIcon, Calendar03Icon } from "hugeicons-react";
 
+function MaximizeIcon() {
+  return <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>;
+}
+
 function EmailTagInput({ isDark }: { isDark: boolean }) {
   const [emails, setEmails] = useState<string[]>([]);
   const [current, setCurrent] = useState("");
@@ -36,7 +40,7 @@ function EmailTagInput({ isDark }: { isDark: boolean }) {
   );
 }
 
-export function CalendarEvent({ isDark, onClose }: { isDark: boolean; onClose: () => void }) {
+export function CalendarEvent({ isDark, onClose, onExpand }: { isDark: boolean; onClose: () => void; onExpand?: () => void }) {
   const tc = (l: string, d: string) => isDark ? d : l;
 
   return (
@@ -48,7 +52,10 @@ export function CalendarEvent({ isDark, onClose }: { isDark: boolean; onClose: (
             <img src="/calendar.png" alt="Calendar" className="w-5 h-5 object-contain" />
             <span className="text-[13px] font-medium" style={{ color: tc("#333", "#ddd") }}>New Event</span>
           </div>
-          <button onClick={onClose} className="w-6 h-6 flex items-center justify-center rounded-full hover:opacity-60 transition-opacity text-[16px]" style={{ color: tc("#666", "#999") }}>×</button>
+          <div className="flex items-center gap-1.5">
+            {onExpand && <button onClick={onExpand} className="p-1.5 rounded-lg" style={{ color: tc("#888", "#777") }} title="Open Calendar"><MaximizeIcon /></button>}
+            <button onClick={onClose} className="w-6 h-6 flex items-center justify-center rounded-full hover:opacity-60 transition-opacity text-[16px]" style={{ color: tc("#666", "#999") }}>×</button>
+          </div>
         </div>
         <div className="px-5 pb-3">
           <input className="w-full bg-transparent outline-none text-[18px] font-normal" style={{ color: tc("#111", "#eee") }} placeholder="Add title" />

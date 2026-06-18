@@ -16,8 +16,17 @@ emailsRouter.get("/", async (req, res) => {
 
   try {
     const tenant = corsair.withTenant(session.user.id);
-    const listParams: any = { maxResults, labelIds: [label] };
+    const listParams: any = { maxResults };
     if (pageToken) listParams.pageToken = pageToken;
+
+    // Use q param for filtering - more reliable across wrappers
+    if (label === "INBOX") listParams.q = "in:inbox";
+    else if (label === "SENT") listParams.q = "in:sent";
+    else if (label === "STARRED") listParams.q = "is:starred";
+    else if (label === "DRAFT") listParams.q = "in:drafts";
+    else if (label === "TRASH") { listParams.q = "in:trash"; listParams.includeSpamTrash = true; }
+    else if (label === "SPAM") { listParams.q = "in:spam"; listParams.includeSpamTrash = true; }
+    else listParams.labelIds = [label];
 
     const list = await tenant.gmail.api.messages.list(listParams);
     const messages = list.messages || [];

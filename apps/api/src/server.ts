@@ -15,6 +15,7 @@ import { corsairRouter } from "./routes/corsair";
 import { threadsRouter } from "./routes/threads";
 import { emailRouter } from "./routes/email";
 import { emailsRouter } from "./routes/emails";
+import { calendarRouter } from "./routes/calendar";
 import { createBaseMcpServer, createMcpRouter } from "@corsair-dev/mcp";
 import { corsair } from "./corsair";
 
@@ -58,6 +59,9 @@ app.use("/api/send-email", emailRouter);
 
 // Email inbox (fetch real emails)
 app.use("/api/emails", emailsRouter);
+
+// Calendar (fetch/create events)
+app.use("/api/calendar", calendarRouter);
 
 // Threads/messages persistence
 app.use("/api/threads", threadsRouter);

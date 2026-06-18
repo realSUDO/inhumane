@@ -5,6 +5,7 @@ import { DefaultChatTransport } from "ai";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { EmailCompose } from "./components/email-compose";
 import { CalendarEvent } from "./components/calendar-event";
+import { CalendarFull } from "./components/calendar-full";
 import { EmailInbox } from "./components/email-inbox";
 import { Mail01Icon, Calendar03Icon, PencilEdit01Icon, Logout03Icon, PlusSignIcon, Home01Icon, Clock01Icon, Settings01Icon, SentIcon, MoreHorizontalIcon, Delete02Icon, PinIcon, Archive01Icon, Edit02Icon } from "hugeicons-react";
 
@@ -327,6 +328,7 @@ export default function ChatPage() {
 
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [showCalendarModal, setShowCalendarModal] = useState(false);
+  const [expandedCalendar, setExpandedCalendar] = useState(false);
   const [showInbox, setShowInbox] = useState(false);
   const [expandedInbox, setExpandedInbox] = useState(false);
 
@@ -400,6 +402,9 @@ export default function ChatPage() {
       <main className="md:ml-[270px] flex-1 h-screen flex flex-col relative overflow-hidden">
         {/* Expanded inbox overlay */}
         {showInbox && expandedInbox && <EmailInbox isDark={isDark} onClose={() => { setShowInbox(false); setExpandedInbox(false); }} expanded={true} onExpand={() => setExpandedInbox(false)} />}
+
+        {/* Expanded calendar overlay */}
+        {showCalendarModal && expandedCalendar && <CalendarFull isDark={isDark} onClose={() => { setShowCalendarModal(false); setExpandedCalendar(false); }} onMinimize={() => setExpandedCalendar(false)} />}
 
         {!showChat ? (
           <div className="flex-1 flex flex-col items-center justify-center px-8 pb-16">
@@ -482,7 +487,7 @@ export default function ChatPage() {
                   </div>
                 )}
                 {showEmailModal && <EmailCompose isDark={isDark} onClose={() => setShowEmailModal(false)} />}
-                {showCalendarModal && <CalendarEvent isDark={isDark} onClose={() => setShowCalendarModal(false)} />}
+                {showCalendarModal && !expandedCalendar && <CalendarEvent isDark={isDark} onClose={() => setShowCalendarModal(false)} onExpand={() => setExpandedCalendar(true)} />}
                 {showInbox && <EmailInbox isDark={isDark} onClose={() => { setShowInbox(false); setExpandedInbox(false); }} expanded={expandedInbox} onExpand={() => setExpandedInbox(!expandedInbox)} />}
                 <div ref={messagesEndRef} />
               </div>
