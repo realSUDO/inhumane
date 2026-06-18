@@ -148,6 +148,7 @@ async function streamToResponse(result: any, res: any, threadId?: string) {
 const chatRequestSchema = z.object({
   messages: z.array(z.any()).min(1),
   threadId: z.string().uuid().optional(),
+  trust: z.boolean().optional(),
 });
 
 // ─── MAIN HANDLER ───
@@ -157,7 +158,7 @@ chatRouter.post("/", async (req, res) => {
 
   const parsed = chatRequestSchema.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Invalid request body", details: parsed.error.issues }); return; }
-  const { messages, threadId } = parsed.data;
+  const { messages, threadId, trust } = parsed.data;
 
   // Persist user message
   const lastMsg = messages[messages.length - 1];
@@ -247,11 +248,28 @@ chatRouter.post("/", async (req, res) => {
 
     // Action requiring drafting (Email / Calendar)
     if (intents.includes("SEND_EMAIL") || intents.includes("CALENDAR_CREATE")) {
+      if (trust) {
+        // Trust mode: execute directly without confirmation cards
+        const client = await getMcpClient(session.user.id);
+        const tools = await client.tools();
+        const result = streamText({
+          model: writer(process.env.LLM_MODEL || "gpt-4.1-mini"),
+          system: `You are Inhumane. The user has TRUST MODE enabled — execute actions directly, no confirmation needed.
+Today: ${new Date().toLocaleString()}${finalMemoryContext}
+For emails: use run_script to send via corsair.gmail.api.messages.send (base64url RFC2822 format).
+For calendar: use run_script to create via corsair.googlecalendar.api.events.create({ event: { summary, start: {dateTime}, end: {dateTime}, attendees: [{email}] } }).
+Execute ALL requested actions sequentially. Report each completion briefly. Be casual.`,
+          messages: modelMessages,
+          tools,
+          stopWhen: stepCountIs(15),
+        });
+        await streamToResponse(result, res, threadId);
+        return;
+      }
       const result = streamText({
         model: writer(process.env.LLM_MODEL || "gpt-4.1-mini"),
         system: getMultiWriterPrompt(finalMemoryContext),
         messages: modelMessages,
-        // no tools for drafting, we rely on markdown blocks
       });
       await streamToResponse(result, res, threadId);
       return;

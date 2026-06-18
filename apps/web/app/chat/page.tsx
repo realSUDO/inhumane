@@ -239,6 +239,9 @@ export default function ChatPage() {
   const [threads, setThreads] = useState<Thread[]>([]);
   const [activeThread, setActiveThread] = useState<string | null>(null);
   const [input, setInput] = useState("");
+  const [trustMode, setTrustMode] = useState(false);
+  const trustRef = useRef(false);
+  trustRef.current = trustMode;
   const [connectStatus, setConnectStatus] = useState<ConnectStatus>({ gmail: true, googlecalendar: true }); // assume connected until checked
   const [user, setUser] = useState<User | null>(null);
   const [showChat, setShowChat] = useState(false);
@@ -266,7 +269,7 @@ export default function ChatPage() {
   const transport = useMemo(() => new DefaultChatTransport({
     api: "/api/chat",
     credentials: "include",
-    body: () => ({ threadId: activeThreadRef.current }),
+    body: () => ({ threadId: activeThreadRef.current, trust: trustRef.current }),
   }), []);
 
   const { messages, sendMessage, status, setMessages, regenerate } = useChat({ transport });
@@ -372,6 +375,9 @@ export default function ChatPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || status !== "ready") return;
+
+    // Trust mode toggle
+    if (input.trim() === "/trust") { setTrustMode(!trustMode); setInput(""); return; }
 
     // Dev shortcuts - inject inline cards
     if (input.trim() === "sm") { setShowEmailModal(true); setShowChat(true); setInput(""); return; }
@@ -629,7 +635,15 @@ export default function ChatPage() {
                       disabled={status !== "ready"}
                     />
                     <div className="flex items-center justify-between mt-1 pt-2">
-                      <span className="text-[10px] font-medium tracking-wide px-1" style={{ color: tc("#bbb", "#666") }}>⏎ to send</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-medium tracking-wide px-1" style={{ color: tc("#bbb", "#666") }}>⏎ to send</span>
+                        {trustMode && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ background: "var(--accent, #4A6FA5)", color: "#fff" }}>
+                            ⚡ Trust
+                            <button onClick={() => setTrustMode(false)} className="ml-0.5 opacity-70 hover:opacity-100">×</button>
+                          </span>
+                        )}
+                      </div>
                       <button type="submit" disabled={status !== "ready" || !input.trim()} className="w-8 h-8 rounded-full flex items-center justify-center disabled:opacity-20 hover:scale-105 active:scale-95 transition-all text-[13px] font-bold shadow-sm" style={{ background: "var(--accent, #111)", color: "var(--accent-fg, #fff)" }}>↑</button>
                     </div>
                   </div>
