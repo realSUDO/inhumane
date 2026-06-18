@@ -511,7 +511,10 @@ export default function ChatPage() {
                     {message.role === "user" ? (
                       <div className="flex justify-end mb-1">
                         <div className="max-w-[75%] rounded-[20px] rounded-br-sm px-4 py-2.5 shadow-sm" style={{ background: tc("rgba(0,0,0,0.05)", "rgba(255,255,255,0.08)"), color: tc("#111", "#e5e5e5") }}>
-                          {(message.parts || [{ type: "text" as const, text: message.content }]).map((part, i) => part.type === "text" ? <p key={i} className="text-[15px] leading-relaxed tracking-tight whitespace-pre-wrap">{part.text}</p> : null)}
+                          {(message.parts || [{ type: "text" as const, text: (message as any).content }]).map((part, i) => {
+                            if (part.type === "text") return <p key={i} className="text-[15px] leading-relaxed tracking-tight whitespace-pre-wrap">{part.text}</p>;
+                            return null;
+                          })}
                         </div>
                       </div>
                     ) : (
@@ -520,7 +523,7 @@ export default function ChatPage() {
                           <span className="text-[10px] font-bold tracking-tight" style={{ color: tc("#555", "#aaa") }}>AI</span>
                         </div>
                         <div className="flex-1 min-w-0 flex flex-col items-start gap-2">
-                          {(message.parts || [{ type: "text" as const, text: message.content }]).map((part, i) => {
+                          {(message.parts || [{ type: "text" as const, text: (message as any).content }]).map((part, i) => {
                             if (part.type === "text") {
                               const blocks = renderMessageParts(part.text);
                               return blocks.map((b, bi) => {
