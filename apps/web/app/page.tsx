@@ -74,63 +74,20 @@ function Navbar() {
         <Link href="#atmosphere" className="hover:opacity-70 transition-opacity" style={{ color: "var(--fg-primary)" }}>Atmosphere</Link>
       </nav>
       <div>
-        <Link
-          href="/chat"
+        <a
+          href="https://chat.inhumane.in/chat"
           className="px-6 py-2.5 rounded-full text-sm font-medium hover:scale-105 transition-all shadow-sm"
           style={{ background: "var(--accent, #111)", color: "var(--accent-fg, #fff)" }}
         >
           OPEN WORKSPACE
-        </Link>
+        </a>
       </div>
     </header>
   );
 }
 
 function HeroSection() {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const targetTimeRef = useRef<number>(0);
-  const isUpdatingRef = useRef<boolean>(false);
-
   const { displayed, done } = useTypewriter("Work at\nInhumane\nSpeed.", 45, 400);
-
-  // Optimized Scrubber
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    const handleMouseMove = (e: MouseEvent) => {
-      if (window.innerWidth < 1024) return;
-
-      const percentage = Math.max(0, Math.min(e.clientX / window.innerWidth, 1));
-      targetTimeRef.current = percentage * (video.duration || 1);
-
-      if (!isUpdatingRef.current) {
-        isUpdatingRef.current = true;
-        requestAnimationFrame(() => {
-          if (video.duration && Math.abs(video.currentTime - targetTimeRef.current) > 0.08) {
-            video.currentTime = targetTimeRef.current;
-          }
-          isUpdatingRef.current = false;
-        });
-      }
-    };
-
-    const handleResize = () => {
-      if (window.innerWidth < 1024 && video.paused) {
-        video.autoplay = true;
-        video.play().catch(() => {});
-      }
-    };
-
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("resize", handleResize);
-    handleResize();
-
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("resize", handleResize);
-    };
-  }, []);
 
   return (
     <section className="relative pt-40 pb-20 min-h-[90vh] flex flex-col justify-center overflow-hidden w-full">
@@ -138,12 +95,13 @@ function HeroSection() {
       {/* Background Graphic & Video Wrapper (Full Width) */}
       <div className="absolute inset-0 z-0 pointer-events-none flex items-center justify-end opacity-80 dark:opacity-40 mix-blend-multiply dark:mix-blend-luminosity">
         <video
-          ref={videoRef}
+          autoPlay
+          loop
           muted
           playsInline
           preload="auto"
           className="w-full h-full object-cover object-right"
-          src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260601_110537_3a579fa0-7bbc-4d94-9d25-0e816c7840f5.mp4"
+          src="/hero-loop.mp4"
         />
         <div 
           className="absolute inset-0 transition-colors duration-700" 
@@ -182,13 +140,13 @@ function HeroSection() {
             A workspace for those who demand clarity over noise. We are the digital architecture for the aesthetic few.
           </p>
           <div className="flex flex-wrap gap-6 items-center">
-            <Link 
-              href="/chat"
+            <a 
+              href="https://chat.inhumane.in/chat"
               className="px-10 py-4 rounded-full font-medium hover:scale-105 transition-all shadow-xl"
               style={{ background: "var(--accent, #111)", color: "var(--accent-fg, #fff)" }}
             >
               Get Started
-            </Link>
+            </a>
             <Link 
               href="#philosophy" 
               className="hover:opacity-70 transition-colors font-medium underline underline-offset-8"
