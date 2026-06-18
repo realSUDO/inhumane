@@ -31,7 +31,7 @@ calendarRouter.post("/events", async (req, res) => {
 
   try {
     const tenant = corsair.withTenant(session.user.id);
-    const event = await tenant.googlecalendar.api.events.create(req.body);
+    const event = await tenant.googlecalendar.api.events.create({ event: req.body });
     res.json(event);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -45,8 +45,22 @@ calendarRouter.delete("/events/:id", async (req, res) => {
 
   try {
     const tenant = corsair.withTenant(session.user.id);
-    await tenant.googlecalendar.api.events.delete({ eventId: req.params.id });
+    await tenant.googlecalendar.api.events.delete({ id: req.params.id });
     res.json({ ok: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/calendar/events/:id - update event
+calendarRouter.put("/events/:id", async (req, res) => {
+  const session = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) });
+  if (!session) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  try {
+    const tenant = corsair.withTenant(session.user.id);
+    const event = await tenant.googlecalendar.api.events.update({ id: req.params.id, event: req.body });
+    res.json(event);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
