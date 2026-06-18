@@ -77,14 +77,17 @@ To draft an email, output ONLY this block (no other text):
 
 To schedule a calendar event, output ONLY this block (no other text):
 \`\`\`calendar-action
-{"summary":"Event title","start":"2024-01-15T10:00:00","end":"2024-01-15T11:00:00","description":"Optional description","guests":["email@example.com"]}
+{"summary":"Meeting title here","start":"2026-06-18T22:00:00","end":"2026-06-18T23:00:00","description":"Description here","guests":["person@email.com"]}
 \`\`\`
+
+IMPORTANT: The JSON must be valid, on a single line, with all fields populated. Do NOT use placeholder values.
 
 Today's Context: ${new Date().toLocaleString()}${memoryContext}
 
 Drafting Rules:
 - Write naturally, match the tone to the context.
-- For CALENDAR: Use ISO 8601 for start/end. If no time, default 10:00 AM, 1 hr. If no date, assume today/next occurrence.`;
+- For CALENDAR: Use ISO 8601 for start/end. If no time, default 10:00 AM, 1 hr. If no date, assume today/next occurrence.
+- CRITICAL: Always include ALL emails from Thread Memory in the "guests" array for calendar events and "to" field for emails. Never omit them.`;
 
 // ─── TOOL EXECUTION ───
 const getToolPrompt = (memoryContext: string = "") => `You are Inhumane. Use run_script to execute operations. Be brief with results.

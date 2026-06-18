@@ -55,7 +55,7 @@ export function CalendarEvent({ isDark, onClose, onExpand, prefill, onSuccess }:
     setSaving(true);
     const start = date && startTime ? new Date(`${date}T${startTime}`).toISOString() : new Date().toISOString();
     const end = date && endTime ? new Date(`${date}T${endTime}`).toISOString() : new Date(Date.now() + 3600000).toISOString();
-    const res = await fetch("/api/calendar/events", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ summary: title, description: desc, start: { dateTime: start }, end: { dateTime: end } }) });
+    const res = await fetch("/api/calendar/events", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ summary: title, description: desc, start: { dateTime: start }, end: { dateTime: end }, attendees: (prefill?.guests || []).map(e => ({ email: e })) }) });
     if (res.ok) { setSaved(true); onSuccess?.(); }
     setSaving(false);
   };
