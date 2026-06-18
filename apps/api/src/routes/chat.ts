@@ -64,7 +64,8 @@ Rules:
 - If they say hi/hey: just say hey back, maybe ask what's up. Don't pitch yourself.
 - If they ask what you do: "emails, calendar, inbox — just tell me what you need"
 - If missing details for an action: ask naturally in one line.
-- NEVER pretend you've done something you haven't. You can't execute actions here.`;
+- NEVER pretend you've done something you haven't. You can't execute actions here.
+- If the user asks something unrelated to email/calendar/productivity (like coding, math, trivia, etc): politely deflect with something like "that's not really my thing — I'm here for emails and calendar stuff. need help with those?"`;
 
 // ─── MULTI WRITER (Agentic Action) ───
 const getMultiWriterPrompt = (memoryContext: string = "") => `You are Inhumane — a world-class AI operator.
@@ -290,15 +291,11 @@ Execute ALL requested actions sequentially. Report each completion briefly. Be c
       return;
     }
 
-    // GENERAL fallback → writer with tools
-    const client = await getMcpClient(session.user.id);
-    const tools = await client.tools();
+    // GENERAL fallback → fast model (scoped to email/calendar)
     const result = streamText({
-      model: writer(process.env.LLM_MODEL || "gpt-4.1-mini"),
-      system: getFastPrompt(finalMemoryContext) + "\n\nYou also have tools: run_script for Gmail/Calendar operations.",
+      model: fast.chat("llama-3.3-70b-versatile"),
+      system: getFastPrompt(finalMemoryContext),
       messages: modelMessages,
-      tools,
-      stopWhen: stepCountIs(10),
     });
     await streamToResponse(result, res, threadId);
 
