@@ -538,8 +538,8 @@ export default function ChatPage() {
 
               {/* Chips */}
               <div className="flex flex-wrap gap-2.5 justify-center mt-6">
-                {[{ label: "Read Inbox", icon: Mail01Icon, q: "Show my latest 5 emails" }, { label: "Schedule", icon: Calendar03Icon, q: "What's on my calendar today?" }, { label: "Compose", icon: PencilEdit01Icon, q: "Draft an email" }].map(chip => (
-                  <button key={chip.label} onClick={() => startNewChat(chip.q)} className="flex items-center gap-2 px-4 py-2.5 rounded-full text-[13px] font-medium transition-all hover:scale-[1.02] active:scale-[0.97]" style={{ background: tc("rgba(0,0,0,0.03)", "rgba(255,255,255,0.04)"), border: `1px solid ${tc("rgba(0,0,0,0.05)", "rgba(255,255,255,0.06)")}`, color: tc("#444", "#bbb") }}>
+                {[{ label: "Read Inbox", icon: Mail01Icon, action: () => { setShowInbox(true); setShowChat(true); } }, { label: "Schedule", icon: Calendar03Icon, action: () => { setShowCalendarModal(true); setShowChat(true); } }, { label: "Compose", icon: PencilEdit01Icon, action: () => { setShowEmailModal(true); setShowChat(true); } }].map(chip => (
+                  <button key={chip.label} onClick={chip.action} className="flex items-center gap-2 px-4 py-2.5 rounded-full text-[13px] font-medium transition-all hover:scale-[1.02] active:scale-[0.97]" style={{ background: tc("rgba(0,0,0,0.03)", "rgba(255,255,255,0.04)"), border: `1px solid ${tc("rgba(0,0,0,0.05)", "rgba(255,255,255,0.06)")}`, color: tc("#444", "#bbb") }}>
                     <chip.icon size={14} className="opacity-60" />{chip.label}
                   </button>
                 ))}
@@ -622,12 +622,21 @@ export default function ChatPage() {
 
             <footer className="absolute bottom-0 left-0 w-full px-6 pb-6 pt-10 pointer-events-none z-40" style={{ background: `linear-gradient(to top, var(--bg) 50%, transparent)` }}>
               <div className="max-w-[680px] mx-auto pointer-events-auto">
+                {/* Command autosuggest */}
+                {input.startsWith("/") && !trustMode && "/trust".startsWith(input.toLowerCase()) && input.length > 1 && (
+                  <div className="mb-1.5 rounded-xl px-1 py-1" style={{ background: tc("rgba(255,255,255,0.85)", "rgba(26,28,35,0.9)"), backdropFilter: "blur(20px)", border: `1px solid ${tc("rgba(0,0,0,0.06)", "rgba(255,255,255,0.06)")}` }}>
+                    <button type="button" onClick={() => { setTrustMode(true); setInput(""); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left text-[13px] transition-colors" style={{ color: tc("#333", "#ddd") }} onMouseEnter={e => (e.currentTarget.style.background = tc("rgba(0,0,0,0.04)", "rgba(255,255,255,0.04)"))} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+                      <span className="font-medium">/trust</span>
+                      <span className="text-[11px] opacity-40">auto-execute without confirmation</span>
+                    </button>
+                  </div>
+                )}
                 <form onSubmit={handleSubmit}>
                   <div className="rounded-2xl p-3 transition-all" style={{ background: tc("rgba(255,255,255,0.75)", "rgba(26,28,35,0.75)"), backdropFilter: "blur(40px) saturate(1.5)", border: `1px solid ${tc("rgba(0,0,0,0.06)", "rgba(255,255,255,0.08)")}`, boxShadow: tc("0 8px 30px rgba(0,0,0,0.06)", "0 8px 30px rgba(0,0,0,0.3)") }}>
                     <textarea
                       value={input}
                       onChange={e => setInput(e.target.value)}
-                      onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(e as any); } }}
+                      onKeyDown={e => { if (e.key === "Tab" && input.startsWith("/") && "/trust".startsWith(input.toLowerCase()) && input.length > 1) { e.preventDefault(); setTrustMode(true); setInput(""); } else if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(e as any); } }}
                       rows={2}
                       className="w-full text-[15px] placeholder:opacity-40 outline-none resize-none bg-transparent leading-[1.6] tracking-tight px-1"
                       style={{ color: tc("#1c1b1b", "#e5e5e5") }}
@@ -639,7 +648,7 @@ export default function ChatPage() {
                         <span className="text-[10px] font-medium tracking-wide px-1" style={{ color: tc("#bbb", "#666") }}>⏎ to send</span>
                         {trustMode && (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ background: "var(--accent, #4A6FA5)", color: "#fff" }}>
-                            ⚡ Trust
+                            /trust
                             <button onClick={() => setTrustMode(false)} className="ml-0.5 opacity-70 hover:opacity-100">×</button>
                           </span>
                         )}
