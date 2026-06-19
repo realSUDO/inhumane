@@ -1,6 +1,8 @@
 import { betterAuth } from "better-auth";
 import { Pool } from "pg";
 
+const isProd = process.env.NODE_ENV === "production" || process.env.NODE_ENV === "prod" || (process.env.BETTER_AUTH_URL || "").startsWith("https");
+
 export const auth = betterAuth({
   secret: process.env.BETTER_AUTH_SECRET,
   baseURL: process.env.BETTER_AUTH_URL,
@@ -19,13 +21,13 @@ export const auth = betterAuth({
     "https://inhumane.in",
   ],
   advanced: {
-    crossSubDomainCookies: {
+    crossSubDomainCookies: isProd ? {
       enabled: true,
       domain: ".inhumane.in",
-    },
+    } : undefined,
     defaultCookieAttributes: {
       sameSite: "lax",
-      secure: true,
+      secure: isProd,
     },
   },
 });

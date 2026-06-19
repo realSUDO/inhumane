@@ -1,5 +1,7 @@
 "use client";
 
+import { createAuthClient } from "better-auth/react";
+const authClient = createAuthClient();
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { useState, useEffect, useRef, useMemo } from "react";
@@ -207,30 +209,45 @@ function groupThreadsByDate(threads: Thread[]) {
   return groups;
 }
 
-function ConnectModal({ status, onConnect }: { status: ConnectStatus; onConnect: (plugin: string) => void }) {
+function ConnectModal({ status, onConnect, onClose }: { status: ConnectStatus; onConnect: (plugin: string) => void, onClose: () => void }) {
   if (status.gmail && status.googlecalendar) return null;
+  const canClose = status.gmail || status.googlecalendar;
   return (
     <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-50 flex items-center justify-center">
-      <div className="bg-[#f4f4f8] rounded-2xl p-10 max-w-lg w-full mx-4 border border-[#e8e8ec]">
+      <div className="bg-[#f4f4f8] rounded-2xl p-10 max-w-lg w-full mx-4 border border-[#e8e8ec] relative shadow-2xl">
+        <button 
+          onClick={onClose} 
+          disabled={!canClose}
+          className={`absolute top-4 right-4 p-2 rounded-full transition-all ${canClose ? "hover:bg-black/5 text-[#6b7280] hover:text-[#1a1a2e]" : "text-[#d1d5db] cursor-not-allowed"}`}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M18 6L6 18M6 6l12 12" /></svg>
+        </button>
         <h2 className="text-2xl font-semibold text-[#1a1a2e] tracking-tight mb-2">Connect your accounts</h2>
         <p className="text-[#6b7280] text-sm mb-8 leading-relaxed">One-time setup. Inhumane needs access to operate on your behalf. Your credentials are encrypted and never shared.</p>
-        <div className="space-y-3">
-          {!status.gmail && (
-            <button onClick={() => onConnect("gmail")} className="w-full flex items-center gap-4 px-5 py-4 rounded-xl bg-[#f8f9fa] hover:bg-[#f4f4f8] border border-[#e8e8ec] transition-all duration-150 active:scale-[0.98]">
-              <Mail01Icon size={20} className="text-[#6b7280]" />
+        <div className="space-y-4">
+          <div className="w-full flex items-center justify-between p-4 rounded-xl bg-[#f8f9fa] border border-[#e8e8ec]">
+            <div className="flex items-center gap-4">
+              <img src="/gmail.png" alt="Gmail" className="w-8 h-8 object-contain" />
               <div className="text-left"><div className="text-sm font-medium text-[#1a1a2e]">Connect Gmail</div><div className="text-xs text-[#6b7280] mt-0.5">Read, send, and manage emails</div></div>
-            </button>
-          )}
-          {!status.googlecalendar && (
-            <button onClick={() => onConnect("googlecalendar")} className="w-full flex items-center gap-4 px-5 py-4 rounded-xl bg-[#f8f9fa] hover:bg-[#f4f4f8] border border-[#e8e8ec] transition-all duration-150 active:scale-[0.98]">
-              <Calendar03Icon size={20} className="text-[#6b7280]" />
+            </div>
+            {status.gmail ? (
+              <button disabled className="px-4 py-2 rounded-lg bg-[#e8e8ec] text-[#9ca3af] text-sm font-medium border border-[#e0e0e4] cursor-default">Approved</button>
+            ) : (
+              <button onClick={() => onConnect("gmail")} className="px-4 py-2 rounded-lg bg-[#1a1a2e] text-white text-sm font-medium hover:bg-[#2a2a3e] transition-colors">Approve</button>
+            )}
+          </div>
+          <div className="w-full flex items-center justify-between p-4 rounded-xl bg-[#f8f9fa] border border-[#e8e8ec]">
+            <div className="flex items-center gap-4">
+              <img src="/calendar.png" alt="Calendar" className="w-8 h-8 object-contain" />
               <div className="text-left"><div className="text-sm font-medium text-[#1a1a2e]">Connect Calendar</div><div className="text-xs text-[#6b7280] mt-0.5">View and create events</div></div>
-            </button>
-          )}
+            </div>
+            {status.googlecalendar ? (
+              <button disabled className="px-4 py-2 rounded-lg bg-[#e8e8ec] text-[#9ca3af] text-sm font-medium border border-[#e0e0e4] cursor-default">Approved</button>
+            ) : (
+              <button onClick={() => onConnect("googlecalendar")} className="px-4 py-2 rounded-lg bg-[#1a1a2e] text-white text-sm font-medium hover:bg-[#2a2a3e] transition-colors">Approve</button>
+            )}
+          </div>
         </div>
-        {(status.gmail || status.googlecalendar) && (
-          <p className="text-xs text-[#6b7280] mt-5 text-center">{status.gmail ? "✓ Gmail connected" : "✓ Calendar connected"}</p>
-        )}
       </div>
     </div>
   );
@@ -248,6 +265,7 @@ export default function ChatPage() {
   const [showChat, setShowChat] = useState(false);
   const [isDark, setIsDark] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [hideConnectModal, setHideConnectModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -276,7 +294,7 @@ export default function ChatPage() {
   const { messages, sendMessage, status, setMessages, regenerate } = useChat({ transport });
 
   useEffect(() => {
-    fetch("/api/threads", { credentials: "include" }).then(r => r.json()).then(setThreads).catch(() => { });
+    fetch("/api/threads", { credentials: "include" }).then(r => r.json()).then(data => setThreads(Array.isArray(data) ? data : [])).catch(() => { });
     fetch("/api/auth/get-session", { credentials: "include" }).then(r => r.json()).then(s => s?.user && setUser(s.user)).catch(() => { });
 
     // Check onboarding status
@@ -295,7 +313,19 @@ export default function ChatPage() {
   useEffect(() => {
     const handler = (e: MessageEvent) => {
       if (e.origin !== window.location.origin) return;
-      if (e.data?.type === "corsair-connected") { fetchConnectStatus(); }
+      if (e.data?.type === "corsair-connected") {
+        // Optimistically mark the plugin as connected immediately
+        const plugin = e.data.plugin;
+        if (plugin) {
+          setConnectStatus(prev => {
+            const next = { ...prev, [plugin]: true };
+            if (next.gmail && next.googlecalendar) localStorage.setItem("inhumane-onboarded", "true");
+            return next;
+          });
+        }
+        // Still confirm with a background fetch
+        fetchConnectStatus();
+      }
     };
     window.addEventListener("message", handler);
     return () => window.removeEventListener("message", handler);
@@ -386,9 +416,18 @@ export default function ChatPage() {
     if (input.startsWith("/") && "/trust".startsWith(input.toLowerCase()) && input.length > 1) { setTrustMode(true); setInput(""); return; }
 
     // Dev shortcuts - inject inline cards
-    if (input.trim() === "sm") { setShowEmailModal(true); setShowChat(true); setInput(""); return; }
-    if (input.trim() === "sc") { setShowCalendarModal(true); setShowChat(true); setInput(""); return; }
-    if (input.trim() === "sml") { setShowInbox(true); setShowChat(true); setInput(""); return; }
+    if (input.trim() === "sm") { 
+      if (!connectStatus.gmail) { setHideConnectModal(false); setInput(""); return; }
+      setShowEmailModal(true); setShowChat(true); setInput(""); return; 
+    }
+    if (input.trim() === "sc") { 
+      if (!connectStatus.googlecalendar) { setHideConnectModal(false); setInput(""); return; }
+      setShowCalendarModal(true); setShowChat(true); setInput(""); return; 
+    }
+    if (input.trim() === "sml") { 
+      if (!connectStatus.gmail) { setHideConnectModal(false); setInput(""); return; }
+      setShowInbox(true); setShowChat(true); setInput(""); return; 
+    }
 
     if (!activeThread) { startNewChat(); return; }
     setShowInbox(false);
@@ -426,8 +465,9 @@ export default function ChatPage() {
       </div>
       {/* Noise */}
       <div className="fixed inset-0 pointer-events-none z-[1]" style={{ opacity: tc("0.018", "0.025"), backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")` }} />
-      <ConnectModal status={connectStatus} onConnect={openConnectPopup} />
-
+      {(!connectStatus.gmail || !connectStatus.googlecalendar) && !hideConnectModal && (
+        <ConnectModal status={connectStatus} onConnect={openConnectPopup} onClose={() => setHideConnectModal(true)} />
+      )}
       <aside className="hidden md:flex flex-col fixed top-3 bottom-3 py-4 gap-4 z-50 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] rounded-2xl shadow-sm" style={{ width: sidebarOpen ? 260 : 56, left: 12, paddingLeft: sidebarOpen ? 16 : 8, paddingRight: sidebarOpen ? 16 : 8, overflow: "hidden", background: sidebarOpen ? tc("#FAFAFA", "#131417") : "transparent", border: sidebarOpen ? `1px solid ${tc("rgba(0,0,0,0.06)", "rgba(255,255,255,0.06)")}` : "1px solid transparent" }}>
         {/* Top Header */}
         <div className={`px-1 py-0.5 flex items-center ${sidebarOpen ? 'justify-between' : 'justify-center'} shrink-0 transition-all duration-300`}>
@@ -439,10 +479,16 @@ export default function ChatPage() {
 
         {/* Quick Apps */}
         <div className={`flex ${sidebarOpen ? 'flex-row gap-2 px-1' : 'flex-col gap-2 justify-center items-center'} transition-all duration-300 shrink-0`}>
-          <button onClick={() => { setExpandedCalendar(true); setShowCalendarModal(true); setShowInbox(false); setShowEmailModal(false); }} className={`flex flex-col items-center justify-center rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:opacity-90 active:scale-[0.97] transition-all duration-300 relative`} style={{ background: tc("#fff", "rgba(255,255,255,0.05)"), border: `1px solid ${tc("rgba(0,0,0,0.06)", "rgba(255,255,255,0.08)")}`, width: sidebarOpen ? "50%" : 40, height: sidebarOpen ? 52 : 40 }}>
+          <button onClick={() => { 
+            if (!connectStatus.googlecalendar) { setHideConnectModal(false); return; }
+            setExpandedCalendar(true); setShowCalendarModal(true); setShowInbox(false); setShowEmailModal(false); 
+          }} className={`flex flex-col items-center justify-center rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:opacity-90 active:scale-[0.97] transition-all duration-300 relative`} style={{ background: tc("#fff", "rgba(255,255,255,0.05)"), border: `1px solid ${tc("rgba(0,0,0,0.06)", "rgba(255,255,255,0.08)")}`, width: sidebarOpen ? "50%" : 40, height: sidebarOpen ? 52 : 40 }}>
             <img src="/calendar.png" alt="Calendar" className={`${sidebarOpen ? 'w-6 h-6' : 'w-5 h-5'}`} />
           </button>
-          <button onClick={() => { setExpandedInbox(true); setShowInbox(true); setShowCalendarModal(false); setShowEmailModal(false); }} className={`flex items-center justify-center rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:opacity-90 active:scale-[0.97] transition-all duration-300`} style={{ background: tc("#fff", "rgba(255,255,255,0.05)"), border: `1px solid ${tc("rgba(0,0,0,0.06)", "rgba(255,255,255,0.08)")}`, width: sidebarOpen ? "50%" : 40, height: sidebarOpen ? 52 : 40 }}>
+          <button onClick={() => { 
+            if (!connectStatus.gmail) { setHideConnectModal(false); return; }
+            setExpandedInbox(true); setShowInbox(true); setShowCalendarModal(false); setShowEmailModal(false); 
+          }} className={`flex items-center justify-center rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:opacity-90 active:scale-[0.97] transition-all duration-300`} style={{ background: tc("#fff", "rgba(255,255,255,0.05)"), border: `1px solid ${tc("rgba(0,0,0,0.06)", "rgba(255,255,255,0.08)")}`, width: sidebarOpen ? "50%" : 40, height: sidebarOpen ? 52 : 40 }}>
             <img src="/gmail.png" alt="Gmail" className={`object-contain ${sidebarOpen ? 'w-6 h-5' : 'w-5 h-4.5'}`} />
           </button>
         </div>
@@ -497,7 +543,7 @@ export default function ChatPage() {
                   <p className="text-[14px] font-medium tracking-tight truncate" style={{ color: tc("#222", "#ddd") }}>{user.name}</p>
                   <p className="text-[12px] truncate" style={{ color: tc("#999", "#555") }}>{user.email}</p>
                 </div>
-                <button onClick={() => { fetch("/api/auth/sign-out", { method: "POST", credentials: "include" }).then(() => { localStorage.removeItem("inhumane-onboarded"); window.location.href = "/"; }); }} className="opacity-30 hover:opacity-70 transition-opacity p-1">
+                <button onClick={async () => { await authClient.signOut(); localStorage.removeItem("inhumane-onboarded"); window.location.href = "/"; }} className="opacity-30 hover:opacity-70 transition-opacity p-1">
                   <Logout03Icon size={15} />
                 </button>
               </div>
@@ -557,7 +603,16 @@ export default function ChatPage() {
 
               {/* Chips */}
               <div className="flex flex-wrap gap-2.5 justify-center mt-6">
-                {[{ label: "Read Inbox", icon: Mail01Icon, action: () => { setExpandedInbox(false); setShowInbox(true); setShowChat(true); } }, { label: "Schedule", icon: Calendar03Icon, action: () => { setExpandedCalendar(false); setShowCalendarModal(true); setShowChat(true); } }, { label: "Compose", icon: PencilEdit01Icon, action: () => { setShowEmailModal(true); setShowChat(true); } }].map(chip => (
+                {[{ label: "Read Inbox", icon: Mail01Icon, action: () => { 
+                  if (!connectStatus.gmail) { setHideConnectModal(false); return; }
+                  setExpandedInbox(false); setShowInbox(true); setShowChat(true); 
+                } }, { label: "Schedule", icon: Calendar03Icon, action: () => { 
+                  if (!connectStatus.googlecalendar) { setHideConnectModal(false); return; }
+                  setExpandedCalendar(false); setShowCalendarModal(true); setShowChat(true); 
+                } }, { label: "Compose", icon: PencilEdit01Icon, action: () => { 
+                  if (!connectStatus.gmail) { setHideConnectModal(false); return; }
+                  setShowEmailModal(true); setShowChat(true); 
+                } }].map(chip => (
                   <button key={chip.label} onClick={chip.action} className="flex items-center gap-2 px-4 py-2.5 rounded-full text-[13px] font-medium transition-all hover:scale-[1.02] active:scale-[0.97]" style={{ background: tc("rgba(0,0,0,0.03)", "rgba(255,255,255,0.04)"), border: `1px solid ${tc("rgba(0,0,0,0.05)", "rgba(255,255,255,0.06)")}`, color: tc("#444", "#bbb") }}>
                     <chip.icon size={14} className="opacity-60" />{chip.label}
                   </button>

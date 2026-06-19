@@ -30,6 +30,7 @@ corsairRouter.get("/connect", async (req, res) => {
   oauthUrl.searchParams.set("prompt", "consent");
 
   res.cookie("corsair_oauth_state", state, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", maxAge: 600000 });
+  res.cookie("corsair_oauth_plugin", plugin, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", maxAge: 600000 });
   res.redirect(oauthUrl.toString());
 });
 
@@ -44,11 +45,13 @@ corsairRouter.get("/callback", async (req, res) => {
 
   try {
     await processOAuthCallback(corsair, { code, state, redirectUri: REDIRECT_URI });
+    const plugin = req.cookies?.corsair_oauth_plugin || "";
     res.clearCookie("corsair_oauth_state");
+    res.clearCookie("corsair_oauth_plugin");
     // Close popup and notify parent (scoped origin, not wildcard)
     const origin = process.env.APP_URL || "*";
     res.send(`<html><body><script>
-      window.opener?.postMessage({ type: "corsair-connected" }, "${origin}");
+      window.opener?.postMessage({ type: "corsair-connected", plugin: "${plugin}" }, "${origin}");
       window.close();
     </script><p>Connected! You can close this window.</p></body></html>`);
   } catch (err) {
