@@ -271,6 +271,28 @@ export default function ChatPage() {
 
   const [greetingMsg, setGreetingMsg] = useState("How can I help you get things done?");
   useEffect(() => {
+    // Ultra-fast cross-tab signaling via the bounce-back route
+    const storageHandler = (e: StorageEvent) => {
+      if (e.key === "corsair-connected" && e.newValue) {
+        try {
+          const data = JSON.parse(e.newValue);
+          if (data.plugin) {
+            setConnectStatus(prev => {
+              const next = { ...prev, [data.plugin]: true };
+              if (next.gmail && next.googlecalendar) localStorage.setItem("inhumane-onboarded", "true");
+              return next;
+            });
+          }
+        } catch {}
+        fetchConnectStatus();
+        try { localStorage.removeItem("corsair-connected"); } catch {}
+      }
+    };
+    window.addEventListener("storage", storageHandler);
+    return () => window.removeEventListener("storage", storageHandler);
+  }, []);
+
+  useEffect(() => {
     const msgs = [
       "What's on your mind today?",
       "How can I help you get things done?",
@@ -309,48 +331,6 @@ export default function ChatPage() {
       if (data.gmail && data.googlecalendar) localStorage.setItem("inhumane-onboarded", "true");
     }).catch(() => { });
   }
-
-  useEffect(() => {
-    // Primary: localStorage-based signaling (works even when window.opener is null after cross-origin OAuth)
-    const storageHandler = (e: StorageEvent) => {
-      if (e.key === "corsair-connected" && e.newValue) {
-        try {
-          const data = JSON.parse(e.newValue);
-          if (data.plugin) {
-            setConnectStatus(prev => {
-              const next = { ...prev, [data.plugin]: true };
-              if (next.gmail && next.googlecalendar) localStorage.setItem("inhumane-onboarded", "true");
-              return next;
-            });
-          }
-        } catch {}
-        fetchConnectStatus();
-        // Clean up the signal key
-        try { localStorage.removeItem("corsair-connected"); } catch {}
-      }
-    };
-    // Fallback: postMessage (works when window.opener survives)
-    const messageHandler = (e: MessageEvent) => {
-      if (e.origin !== window.location.origin) return;
-      if (e.data?.type === "corsair-connected") {
-        const plugin = e.data.plugin;
-        if (plugin) {
-          setConnectStatus(prev => {
-            const next = { ...prev, [plugin]: true };
-            if (next.gmail && next.googlecalendar) localStorage.setItem("inhumane-onboarded", "true");
-            return next;
-          });
-        }
-        fetchConnectStatus();
-      }
-    };
-    window.addEventListener("storage", storageHandler);
-    window.addEventListener("message", messageHandler);
-    return () => {
-      window.removeEventListener("storage", storageHandler);
-      window.removeEventListener("message", messageHandler);
-    };
-  }, []);
 
   const justCreatedRef = useRef(false);
 
@@ -398,7 +378,9 @@ export default function ChatPage() {
     }
   };
 
-  const openConnectPopup = (plugin: string) => { window.open(`/api/corsair/connect?plugin=${plugin}`, "corsair-connect", "width=500,height=600,popup=yes"); };
+  const openConnectPopup = (plugin: string) => { 
+    window.open(`/api/corsair/connect?plugin=${plugin}`, "corsair-connect", "width=500,height=600,popup=yes"); 
+  };
 
   const startNewChat = (prefill?: string) => {
     setShowInbox(false);
