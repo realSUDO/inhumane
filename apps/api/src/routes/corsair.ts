@@ -48,15 +48,14 @@ corsairRouter.get("/callback", async (req, res) => {
     const plugin = req.cookies?.corsair_oauth_plugin || "";
     res.clearCookie("corsair_oauth_state");
     res.clearCookie("corsair_oauth_plugin");
-    res.send(`<html><body><script>
-      setTimeout(function() { window.close(); }, 300);
-    </script><p>Connected! You can close this window.</p></body></html>`);
+    // Bounce back to frontend domain to allow cross-origin communication
+    const origin = process.env.APP_URL || "http://localhost:3000";
+    res.redirect(`${origin}/oauth-success?plugin=${plugin}`);
   } catch (err) {
     res.clearCookie("corsair_oauth_state");
     res.clearCookie("corsair_oauth_plugin");
-    res.send(`<html><body><script>
-      setTimeout(function() { window.close(); }, 300);
-    </script><p>Connection failed. Close this window and try again.</p></body></html>`);
+    const origin = process.env.APP_URL || "http://localhost:3000";
+    res.redirect(`${origin}/oauth-success?error=true`);
   }
 });
 

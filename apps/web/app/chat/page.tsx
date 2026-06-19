@@ -271,6 +271,28 @@ export default function ChatPage() {
 
   const [greetingMsg, setGreetingMsg] = useState("How can I help you get things done?");
   useEffect(() => {
+    // Ultra-fast cross-tab signaling via the bounce-back route
+    const storageHandler = (e: StorageEvent) => {
+      if (e.key === "corsair-connected" && e.newValue) {
+        try {
+          const data = JSON.parse(e.newValue);
+          if (data.plugin) {
+            setConnectStatus(prev => {
+              const next = { ...prev, [data.plugin]: true };
+              if (next.gmail && next.googlecalendar) localStorage.setItem("inhumane-onboarded", "true");
+              return next;
+            });
+          }
+        } catch {}
+        fetchConnectStatus();
+        try { localStorage.removeItem("corsair-connected"); } catch {}
+      }
+    };
+    window.addEventListener("storage", storageHandler);
+    return () => window.removeEventListener("storage", storageHandler);
+  }, []);
+
+  useEffect(() => {
     const msgs = [
       "What's on your mind today?",
       "How can I help you get things done?",
@@ -309,11 +331,6 @@ export default function ChatPage() {
       if (data.gmail && data.googlecalendar) localStorage.setItem("inhumane-onboarded", "true");
     }).catch(() => { });
   }
-
-  // Cleanup unused event listeners
-  useEffect(() => {
-    // We now use polling in openConnectPopup instead of window events
-  }, []);
 
   const justCreatedRef = useRef(false);
 
@@ -362,15 +379,7 @@ export default function ChatPage() {
   };
 
   const openConnectPopup = (plugin: string) => { 
-    const popup = window.open(`/api/corsair/connect?plugin=${plugin}`, "corsair-connect", "width=500,height=600,popup=yes"); 
-    if (popup) {
-      const interval = setInterval(() => {
-        if (popup.closed) {
-          clearInterval(interval);
-          fetchConnectStatus();
-        }
-      }, 500);
-    }
+    window.open(`/api/corsair/connect?plugin=${plugin}`, "corsair-connect", "width=500,height=600,popup=yes"); 
   };
 
   const startNewChat = (prefill?: string) => {
