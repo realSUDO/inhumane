@@ -311,10 +311,28 @@ export default function ChatPage() {
   }
 
   useEffect(() => {
-    const handler = (e: MessageEvent) => {
+    // Primary: localStorage-based signaling (works even when window.opener is null after cross-origin OAuth)
+    const storageHandler = (e: StorageEvent) => {
+      if (e.key === "corsair-connected" && e.newValue) {
+        try {
+          const data = JSON.parse(e.newValue);
+          if (data.plugin) {
+            setConnectStatus(prev => {
+              const next = { ...prev, [data.plugin]: true };
+              if (next.gmail && next.googlecalendar) localStorage.setItem("inhumane-onboarded", "true");
+              return next;
+            });
+          }
+        } catch {}
+        fetchConnectStatus();
+        // Clean up the signal key
+        try { localStorage.removeItem("corsair-connected"); } catch {}
+      }
+    };
+    // Fallback: postMessage (works when window.opener survives)
+    const messageHandler = (e: MessageEvent) => {
       if (e.origin !== window.location.origin) return;
       if (e.data?.type === "corsair-connected") {
-        // Optimistically mark the plugin as connected immediately
         const plugin = e.data.plugin;
         if (plugin) {
           setConnectStatus(prev => {
@@ -323,12 +341,15 @@ export default function ChatPage() {
             return next;
           });
         }
-        // Still confirm with a background fetch
         fetchConnectStatus();
       }
     };
-    window.addEventListener("message", handler);
-    return () => window.removeEventListener("message", handler);
+    window.addEventListener("storage", storageHandler);
+    window.addEventListener("message", messageHandler);
+    return () => {
+      window.removeEventListener("storage", storageHandler);
+      window.removeEventListener("message", messageHandler);
+    };
   }, []);
 
   const justCreatedRef = useRef(false);
