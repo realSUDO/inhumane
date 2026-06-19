@@ -310,46 +310,9 @@ export default function ChatPage() {
     }).catch(() => { });
   }
 
+  // Cleanup unused event listeners
   useEffect(() => {
-    // Primary: localStorage-based signaling (works even when window.opener is null after cross-origin OAuth)
-    const storageHandler = (e: StorageEvent) => {
-      if (e.key === "corsair-connected" && e.newValue) {
-        try {
-          const data = JSON.parse(e.newValue);
-          if (data.plugin) {
-            setConnectStatus(prev => {
-              const next = { ...prev, [data.plugin]: true };
-              if (next.gmail && next.googlecalendar) localStorage.setItem("inhumane-onboarded", "true");
-              return next;
-            });
-          }
-        } catch {}
-        fetchConnectStatus();
-        // Clean up the signal key
-        try { localStorage.removeItem("corsair-connected"); } catch {}
-      }
-    };
-    // Fallback: postMessage (works when window.opener survives)
-    const messageHandler = (e: MessageEvent) => {
-      if (e.origin !== window.location.origin) return;
-      if (e.data?.type === "corsair-connected") {
-        const plugin = e.data.plugin;
-        if (plugin) {
-          setConnectStatus(prev => {
-            const next = { ...prev, [plugin]: true };
-            if (next.gmail && next.googlecalendar) localStorage.setItem("inhumane-onboarded", "true");
-            return next;
-          });
-        }
-        fetchConnectStatus();
-      }
-    };
-    window.addEventListener("storage", storageHandler);
-    window.addEventListener("message", messageHandler);
-    return () => {
-      window.removeEventListener("storage", storageHandler);
-      window.removeEventListener("message", messageHandler);
-    };
+    // We now use polling in openConnectPopup instead of window events
   }, []);
 
   const justCreatedRef = useRef(false);
@@ -398,7 +361,17 @@ export default function ChatPage() {
     }
   };
 
-  const openConnectPopup = (plugin: string) => { window.open(`/api/corsair/connect?plugin=${plugin}`, "corsair-connect", "width=500,height=600,popup=yes"); };
+  const openConnectPopup = (plugin: string) => { 
+    const popup = window.open(`/api/corsair/connect?plugin=${plugin}`, "corsair-connect", "width=500,height=600,popup=yes"); 
+    if (popup) {
+      const interval = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(interval);
+          fetchConnectStatus();
+        }
+      }, 500);
+    }
+  };
 
   const startNewChat = (prefill?: string) => {
     setShowInbox(false);

@@ -48,20 +48,14 @@ corsairRouter.get("/callback", async (req, res) => {
     const plugin = req.cookies?.corsair_oauth_plugin || "";
     res.clearCookie("corsair_oauth_state");
     res.clearCookie("corsair_oauth_plugin");
-    // Close popup and notify parent (scoped origin, not wildcard)
-    const origin = process.env.APP_URL || "*";
     res.send(`<html><body><script>
-      // Use localStorage to signal the parent — window.opener is often null after cross-origin OAuth redirects
-      try { localStorage.setItem("corsair-connected", JSON.stringify({ plugin: "${plugin}", ts: Date.now() })); } catch(e) {}
-      try { window.opener?.postMessage({ type: "corsair-connected", plugin: "${plugin}" }, "${origin}"); } catch(e) {}
       setTimeout(function() { window.close(); }, 300);
     </script><p>Connected! You can close this window.</p></body></html>`);
   } catch (err) {
     res.clearCookie("corsair_oauth_state");
-    const origin = process.env.APP_URL || "*";
+    res.clearCookie("corsair_oauth_plugin");
     res.send(`<html><body><script>
-      window.opener?.postMessage({ type: "corsair-error" }, "${origin}");
-      window.close();
+      setTimeout(function() { window.close(); }, 300);
     </script><p>Connection failed. Close this window and try again.</p></body></html>`);
   }
 });
