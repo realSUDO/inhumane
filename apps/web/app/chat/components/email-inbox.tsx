@@ -183,9 +183,16 @@ export function EmailInbox({ isDark, onClose, expanded, onExpand }: { isDark: bo
             </div>
           ) : openEmail!.body.includes("<") ? (
             <iframe
-              srcDoc={openEmail!.body}
+              srcDoc={isDark ? `<style>
+                body, table, td, div, p, span, h1, h2, h3, h4, h5, h6, b, strong, i, em { 
+                  background-color: transparent !important; 
+                  color: #e5e7eb !important; 
+                }
+                body { background-color: #0d1117 !important; }
+                a { color: #8ab4f8 !important; }
+              </style>${openEmail!.body}` : openEmail!.body}
               sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin"
-              className="w-full border-0 rounded-xl bg-white min-h-[400px]"
+              className={`w-full border-0 rounded-xl min-h-[400px] ${isDark ? 'bg-[#0d1117]' : 'bg-white'}`}
               onLoad={(e) => {
                 const iframe = e.target as HTMLIFrameElement;
                 if (iframe.contentWindow) {
