@@ -11,6 +11,8 @@ const sendEmailSchema = z.object({
   to: z.string().min(1),
   subject: z.string().min(1),
   body: z.string().min(1),
+  threadId: z.string().optional(),
+  messageId: z.string().optional(),
 });
 
 // POST /api/send-email — user-confirmed email send
@@ -20,7 +22,7 @@ emailRouter.post("/", async (req, res) => {
 
   const parsed = sendEmailSchema.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Invalid body", details: parsed.error.issues }); return; }
-  const { to, subject, body } = parsed.data;
+  const { to, subject, body, threadId, messageId } = parsed.data;
 
   try {
     const usage = await cache.getUsage(session.user.id, "actions");
@@ -31,10 +33,25 @@ emailRouter.post("/", async (req, res) => {
     await cache.incrementUsage(session.user.id, "actions");
 
     const tenant = corsair.withTenant(session.user.id);
-    const mime = ["To: " + to, "Subject: " + subject, "Content-Type: text/plain; charset=utf-8", "", body].join("\r\n");
+    const mimeLines = [
+      "To: " + to,
+      "Subject: " + subject,
+      "Content-Type: text/plain; charset=utf-8",
+    ];
+    if (messageId) {
+      mimeLines.push(`In-Reply-To: <${messageId}>`);
+      mimeLines.push(`References: <${messageId}>`);
+    }
+    mimeLines.push("", body);
+    
+    const mime = mimeLines.join("\r\n");
     const raw = Buffer.from(mime).toString("base64url");
-    const result = await tenant.gmail.api.messages.send({ raw });
-    res.json({ success: true, messageId: result.id });
+    
+    const requestBody: any = { raw };
+    if (threadId) requestBody.threadId = threadId;
+    
+    const result = await tenant.gmail.api.messages.send({ requestBody });
+    res.json({ success: true, messageId: result.data?.id || result.id });
   } catch (err: any) {
     res.status(500).json({ error: err.message || "Failed to send" });
   }

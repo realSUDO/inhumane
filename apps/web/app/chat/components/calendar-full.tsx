@@ -32,7 +32,23 @@ function getColor(colorId?: string) { return COLORS.find(c => c.id === colorId)?
 export function CalendarFull({ isDark, onClose, onMinimize }: { isDark: boolean; onClose: () => void; onMinimize: () => void }) {
   const tc = (l: string, d: string) => isDark ? d : l;
   const [events, setEvents] = useState<CalEvent[]>([]);
-  const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()));
+  
+  const [viewMode, setViewMode] = useState<"day" | "4days" | "week" | "month">("week");
+  const numDays = viewMode === "day" ? 1 : viewMode === "4days" ? 4 : viewMode === "week" ? 7 : 42;
+  
+  const getBaseDate = (mode: string, date: Date) => {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    if (mode === "week") {
+      d.setDate(d.getDate() - d.getDay());
+    } else if (mode === "month") {
+      d.setDate(1);
+      d.setDate(d.getDate() - d.getDay());
+    }
+    return d;
+  };
+  
+  const [viewStart, setViewStart] = useState(() => getBaseDate("week", new Date()));
   const [loading, setLoading] = useState(false);
 
   // Drag state
@@ -49,20 +65,47 @@ export function CalendarFull({ isDark, onClose, onMinimize }: { isDark: boolean;
   // Context menu (right-click color)
   const [ctxMenu, setCtxMenu] = useState<{ eventId: string; x: number; y: number } | null>(null);
 
-  const weekEnd = useMemo(() => addDays(weekStart, 7), [weekStart]);
+  const viewEnd = useMemo(() => addDays(viewStart, numDays), [viewStart, numDays]);
 
   const fetchEvents = useCallback(async () => {
     setLoading(true);
-    const r = await fetch(`/api/calendar/events?timeMin=${weekStart.toISOString()}&timeMax=${weekEnd.toISOString()}`, { credentials: "include" });
+    const r = await fetch(`/api/calendar/events?timeMin=${viewStart.toISOString()}&timeMax=${viewEnd.toISOString()}`, { credentials: "include" });
     if (r.ok) { const d = await r.json(); setEvents(d.events || []); }
     setLoading(false);
-  }, [weekStart, weekEnd]);
+  }, [viewStart, viewEnd]);
 
   useEffect(() => { fetchEvents(); }, [fetchEvents]);
 
-  const prevWeek = () => setWeekStart(addDays(weekStart, -7));
-  const nextWeek = () => setWeekStart(addDays(weekStart, 7));
-  const today = () => setWeekStart(getWeekStart(new Date()));
+  const [now, setNow] = useState(new Date());
+  useEffect(() => { const int = setInterval(() => setNow(new Date()), 60000); return () => clearInterval(int); }, []);
+  const nowTop = (now.getHours() * 60 + now.getMinutes()) / 60 * CELL_H;
+
+  const setMode = (mode: "day" | "4days" | "week" | "month") => {
+    setViewMode(mode);
+    setViewStart(getBaseDate(mode, viewStart));
+  };
+
+  const prevView = () => {
+    if (viewMode === "month") {
+      const d = new Date(viewStart);
+      d.setDate(d.getDate() + 15);
+      d.setMonth(d.getMonth() - 1);
+      setViewStart(getBaseDate("month", d));
+    } else {
+      setViewStart(addDays(viewStart, -numDays));
+    }
+  };
+  const nextView = () => {
+    if (viewMode === "month") {
+      const d = new Date(viewStart);
+      d.setDate(d.getDate() + 15);
+      d.setMonth(d.getMonth() + 1);
+      setViewStart(getBaseDate("month", d));
+    } else {
+      setViewStart(addDays(viewStart, numDays));
+    }
+  };
+  const today = () => setViewStart(getBaseDate(viewMode, new Date()));
 
   // Quarter-hour from mouse Y
   const getQuarter = (clientY: number) => {
@@ -76,8 +119,8 @@ export function CalendarFull({ isDark, onClose, onMinimize }: { isDark: boolean;
     if (!gridRef.current) return 0;
     const rect = gridRef.current.getBoundingClientRect();
     const x = clientX - rect.left - 56;
-    const colW = (rect.width - 56) / 7;
-    return Math.max(0, Math.min(6, Math.floor(x / colW)));
+    const colW = (rect.width - 56) / numDays;
+    return Math.max(0, Math.min(numDays - 1, Math.floor(x / colW)));
   };
 
   // Mouse handlers for drag-to-create
@@ -99,7 +142,7 @@ export function CalendarFull({ isDark, onClose, onMinimize }: { isDark: boolean;
     const endQ = Math.max(dragging.startQ + 2, dragging.endQ);
     // Open popup
     const rect = gridRef.current?.getBoundingClientRect();
-    const colW = rect ? (rect.width - 56) / 7 : 100;
+    const colW = rect ? (rect.width - 56) / numDays : 100;
     const px = rect ? rect.left + 56 + dragging.day * colW + colW / 2 : e.clientX;
     const py = rect ? rect.top + (dragging.startQ * CELL_H / 4) - gridRef.current!.scrollTop + 60 : e.clientY;
     setPopup({ day: dragging.day, startQ: dragging.startQ, endQ, x: Math.min(px, window.innerWidth - 340), y: Math.min(py, window.innerHeight - 300) });
@@ -119,7 +162,7 @@ export function CalendarFull({ isDark, onClose, onMinimize }: { isDark: boolean;
       await fetch(`/api/calendar/events/${popup.event.id}`, { method: "PUT", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ summary: popupTitle || popup.event.summary, description: popupDesc, colorId: popupColor }) });
     } else {
       // Optimistic create
-      const day = addDays(weekStart, popup.day!);
+      const day = addDays(viewStart, popup.day!);
       const start = new Date(day); start.setHours(0, popup.startQ! * 15, 0, 0);
       const end = new Date(day); end.setHours(0, popup.endQ! * 15, 0, 0);
       const tempId = `temp-${Date.now()}`;
@@ -153,14 +196,23 @@ export function CalendarFull({ isDark, onClose, onMinimize }: { isDark: boolean;
     if (!startStr) return null;
     const start = new Date(startStr);
     const end = endStr ? new Date(endStr) : new Date(start.getTime() + 3600000);
-    const dayIdx = start.getDay();
+    
+    // Calculate day index relative to viewStart
+    const startDayDate = new Date(start); startDayDate.setHours(0,0,0,0);
+    const viewStartCopy = new Date(viewStart); viewStartCopy.setHours(0,0,0,0);
+    const dayIdx = Math.round((startDayDate.getTime() - viewStartCopy.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (dayIdx < 0 || dayIdx >= numDays) return null;
+
     const startMin = start.getHours() * 60 + start.getMinutes();
     const endMin = end.getHours() * 60 + end.getMinutes();
     return { dayIdx, top: (startMin / 60) * CELL_H, height: Math.max(((endMin - startMin) / 60) * CELL_H, 20) };
   };
 
   const formatTime = (q: number) => { const h = Math.floor(q / 4); const m = (q % 4) * 15; return `${h % 12 || 12}:${m.toString().padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`; };
-  const monthYear = weekStart.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  const targetMonthDate = viewMode === "month" ? new Date(viewStart.getTime() + 15 * 24 * 60 * 60 * 1000) : viewStart;
+  const monthName = targetMonthDate.toLocaleDateString("en-US", { month: "long" });
+  const currentYear = targetMonthDate.getFullYear();
 
   return (
     <div className="absolute inset-0 z-[60] flex flex-col" style={{ background: tc("#fff", "#111317"), animation: "fadeIn 0.15s ease-out" }} onClick={() => { setCtxMenu(null); }}>
@@ -169,66 +221,149 @@ export function CalendarFull({ isDark, onClose, onMinimize }: { isDark: boolean;
         <img src="/calendar.png" alt="Calendar" className="w-6 h-6 object-contain" />
         <span className="text-[16px] font-medium mr-4" style={{ color: tc("#333", "#eee") }}>Calendar</span>
         <button onClick={today} className="px-3 py-1 rounded text-[12px] font-medium border" style={{ borderColor: tc("#dadce0", "rgba(255,255,255,0.12)"), color: tc("#555", "#ccc") }}>Today</button>
-        <button onClick={prevWeek} className="p-1 rounded" style={{ color: tc("#555", "#aaa") }}><ChevLeft /></button>
-        <button onClick={nextWeek} className="p-1 rounded" style={{ color: tc("#555", "#aaa") }}><ChevRight /></button>
-        <span className="text-[14px] font-normal" style={{ color: tc("#333", "#eee") }}>{monthYear}</span>
+        <button onClick={prevView} className="p-1 rounded" style={{ color: tc("#555", "#aaa") }}><ChevLeft /></button>
+        <button onClick={nextView} className="p-1 rounded" style={{ color: tc("#555", "#aaa") }}><ChevRight /></button>
+        <div className="flex items-center gap-1">
+          <span className="text-[14px] font-normal" style={{ color: tc("#333", "#eee") }}>{monthName}</span>
+          <select value={currentYear} onChange={e => {
+            const d = new Date(viewStart);
+            const diff = parseInt(e.target.value) - currentYear;
+            d.setFullYear(d.getFullYear() + diff);
+            setViewStart(getBaseDate(viewMode, d));
+          }} className="bg-transparent text-[14px] font-normal outline-none cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 rounded px-1" style={{ color: tc("#333", "#eee") }}>
+            {Array.from({ length: 21 }, (_, i) => currentYear - 10 + i).map(y => (
+              <option key={y} value={y} style={{ background: tc("#fff", "#2a2d35") }}>{y}</option>
+            ))}
+          </select>
+        </div>
         <div className="flex-1" />
+        <select value={viewMode} onChange={e => setMode(e.target.value as any)} className="bg-transparent border rounded px-2 py-1 text-[13px] outline-none mr-4" style={{ borderColor: tc("#dadce0", "rgba(255,255,255,0.12)"), color: tc("#555", "#ccc") }}>
+          <option value="day" style={{ background: tc("#fff", "#2a2d35") }}>Day</option>
+          <option value="4days" style={{ background: tc("#fff", "#2a2d35") }}>4 Days</option>
+          <option value="week" style={{ background: tc("#fff", "#2a2d35") }}>Week</option>
+          <option value="month" style={{ background: tc("#fff", "#2a2d35") }}>Month</option>
+        </select>
         <button onClick={onMinimize} className="p-2 rounded-full" style={{ color: tc("#555", "#aaa") }}><MinimizeIcon /></button>
         <button onClick={onClose} className="p-2 rounded-full text-[16px]" style={{ color: tc("#555", "#aaa") }}>×</button>
       </div>
 
-      {/* Day headers */}
-      <div className="flex shrink-0" style={{ borderBottom: `1px solid ${tc("#dadce0", "rgba(255,255,255,0.06)")}`, paddingLeft: 56 }}>
-        {Array.from({ length: 7 }, (_, i) => {
-          const day = addDays(weekStart, i);
-          const isToday = day.toDateString() === new Date().toDateString();
-          return (
-            <div key={i} className="flex-1 text-center py-1.5">
-              <div className="text-[10px] font-medium tracking-wide" style={{ color: isToday ? tc("#1a73e8", "#8ab4f8") : tc("#70757a", "#999") }}>{DAY_NAMES[i]}</div>
-              <div className={`text-[22px] w-10 h-10 flex items-center justify-center mx-auto rounded-full leading-none`} style={{ background: isToday ? tc("#1a73e8", "#8ab4f8") : "transparent", color: isToday ? "#fff" : tc("#333", "#eee") }}>{day.getDate()}</div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Time grid */}
-      <div ref={gridRef} className="flex-1 overflow-y-auto relative select-none" style={{ scrollbarWidth: "thin" }} onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp}>
-        <div className="relative" style={{ height: 24 * CELL_H }}>
-          {/* Hour labels + lines */}
-          {HOURS.map(h => (
-            <div key={h}>
-              <div className="absolute left-0 w-[56px] text-right pr-2 text-[10px] -mt-[6px]" style={{ top: h * CELL_H, color: tc("#70757a", "#666") }}>
-                {h === 0 ? "" : `${h % 12 || 12} ${h < 12 ? "AM" : "PM"}`}
+      {viewMode === "month" ? (
+        <div className="flex-1 flex flex-col" style={{ background: tc("#fff", "#111317") }}>
+          {/* Day of week headers */}
+          <div className="flex shrink-0" style={{ borderBottom: `1px solid ${tc("#dadce0", "rgba(255,255,255,0.06)")}` }}>
+            {DAY_NAMES.map((name, i) => (
+              <div key={i} className="flex-1 text-center py-2 text-[11px] font-medium" style={{ color: tc("#70757a", "#999"), borderRight: i < 6 ? `1px solid ${tc("#dadce0", "rgba(255,255,255,0.06)")}` : "none" }}>{name}</div>
+            ))}
+          </div>
+          
+          {/* 6 Week rows */}
+          <div className="flex-1 grid grid-rows-6">
+            {Array.from({ length: 6 }, (_, row) => (
+              <div key={row} className="flex" style={{ borderBottom: `1px solid ${tc("#dadce0", "rgba(255,255,255,0.06)")}` }}>
+                {Array.from({ length: 7 }, (_, col) => {
+                  const dayIdx = row * 7 + col;
+                  const date = addDays(viewStart, dayIdx);
+                  const isToday = date.toDateString() === new Date().toDateString();
+                  const isCurrentMonth = date.getMonth() === targetMonthDate.getMonth();
+                  
+                  // Get events for this day
+                  const dayEvents = events.filter(e => {
+                    const sStr = e.start?.dateTime || e.start?.date;
+                    if (!sStr) return false;
+                    const s = new Date(sStr); s.setHours(0,0,0,0);
+                    const d = new Date(date); d.setHours(0,0,0,0);
+                    return s.getTime() === d.getTime();
+                  });
+                  
+                  return (
+                    <div key={col} className="flex-1 flex flex-col overflow-hidden day-cell-bg" style={{ borderRight: col < 6 ? `1px solid ${tc("#dadce0", "rgba(255,255,255,0.06)")}` : "none", cursor: "pointer" }}
+                      onClick={(e) => {
+                        if (e.target !== e.currentTarget && !(e.target as HTMLElement).classList.contains('day-cell-bg')) return;
+                        setPopup({ day: dayIdx, startQ: 36, endQ: 40, x: Math.min(e.clientX, window.innerWidth - 340), y: Math.min(e.clientY, window.innerHeight - 300) });
+                      }}>
+                      <div className="day-cell-bg flex-1 p-1 flex flex-col pointer-events-none">
+                        <div className={`text-center text-[12px] w-6 h-6 mx-auto flex items-center justify-center rounded-full mb-1 pointer-events-auto ${isToday ? 'font-bold' : ''}`} style={{ background: isToday ? tc("#1a73e8", "#8ab4f8") : "transparent", color: isToday ? "#fff" : isCurrentMonth ? tc("#3c4043", "#e8eaed") : tc("#70757a", "#5f6368") }}>
+                          {date.getDate() === 1 ? `${date.toLocaleString('default', { month: 'short' })} 1` : date.getDate()}
+                        </div>
+                        
+                        <div className="flex flex-col gap-[2px] pointer-events-auto overflow-y-auto" style={{ scrollbarWidth: "none" }}>
+                          {dayEvents.map(event => (
+                            <div key={event.id} className="text-[11px] px-1.5 py-0.5 rounded truncate cursor-pointer hover:opacity-90" style={{ background: getColor(event.colorId), color: "#fff" }}
+                              onClick={e => { e.stopPropagation(); setPopup({ event, x: Math.min(e.clientX, window.innerWidth - 340), y: Math.min(e.clientY, window.innerHeight - 300) }); setPopupTitle(event.summary || ""); setPopupDesc(event.description || ""); setPopupColor(event.colorId || "7"); }}
+                              onContextMenu={e => { e.preventDefault(); e.stopPropagation(); setCtxMenu({ eventId: event.id, x: e.clientX, y: e.clientY }); }}>
+                              {(event.start?.dateTime ? new Date(event.start.dateTime).toLocaleTimeString([], {hour: 'numeric', minute:'2-digit'}).replace(' ','') + ' ' : '')}{event.summary || "(No title)"}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-              <div className="absolute left-[56px] right-0" style={{ top: h * CELL_H, borderTop: `1px solid ${tc("#dadce0", "rgba(255,255,255,0.05)")}` }} />
-            </div>
-          ))}
-          {/* Day column borders */}
-          <div className="absolute left-[56px] right-0 top-0 bottom-0 flex pointer-events-none">
-            {Array.from({ length: 7 }, (_, i) => <div key={i} className="flex-1" style={{ borderLeft: i > 0 ? `1px solid ${tc("#dadce0", "rgba(255,255,255,0.05)")}` : "none" }} />)}
+            ))}
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Day headers */}
+          <div className="flex shrink-0" style={{ borderBottom: `1px solid ${tc("#dadce0", "rgba(255,255,255,0.06)")}`, paddingLeft: 56 }}>
+            {Array.from({ length: numDays }, (_, i) => {
+              const day = addDays(viewStart, i);
+              const isToday = day.toDateString() === new Date().toDateString();
+              return (
+                <div key={i} className="flex-1 text-center py-1.5">
+                  <div className="text-[10px] font-medium tracking-wide" style={{ color: isToday ? tc("#1a73e8", "#8ab4f8") : tc("#70757a", "#999") }}>{DAY_NAMES[i]}</div>
+                  <div className={`text-[22px] w-10 h-10 flex items-center justify-center mx-auto rounded-full leading-none`} style={{ background: isToday ? tc("#1a73e8", "#8ab4f8") : "transparent", color: isToday ? "#fff" : tc("#333", "#eee") }}>{day.getDate()}</div>
+                </div>
+              );
+            })}
           </div>
 
-          {/* Drag preview */}
-          {dragging && (
-            <div className="absolute rounded-[4px] pointer-events-none opacity-70" style={{ left: `calc(56px + ${dragging.day} * ((100% - 56px) / 7) + 2px)`, top: dragging.startQ * (CELL_H / 4), height: Math.max((dragging.endQ - dragging.startQ) * (CELL_H / 4), 12), width: `calc((100% - 56px) / 7 - 4px)`, background: getColor(popupColor) }} />
-          )}
-
-          {/* Events */}
-          {events.map(event => {
-            const pos = getEventPosition(event);
-            if (!pos) return null;
-            const color = getColor(event.colorId);
-            return (
-              <div key={event.id} className="absolute rounded-[4px] px-2 py-1 overflow-hidden cursor-pointer group" style={{ left: `calc(56px + ${pos.dayIdx} * ((100% - 56px) / 7) + 2px)`, top: pos.top, height: pos.height, width: `calc((100% - 56px) / 7 - 4px)`, background: color, color: "#fff", fontSize: 11 }}
-                onClick={e => { e.stopPropagation(); setPopup({ event, x: Math.min(e.clientX, window.innerWidth - 340), y: Math.min(e.clientY, window.innerHeight - 300) }); setPopupTitle(event.summary || ""); setPopupDesc(event.description || ""); setPopupColor(event.colorId || "7"); }}
-                onContextMenu={e => { e.preventDefault(); e.stopPropagation(); setCtxMenu({ eventId: event.id, x: e.clientX, y: e.clientY }); }}>
-                <div className="font-medium truncate leading-tight">{event.summary || "(No title)"}</div>
-                {pos.height > 30 && <div className="text-[10px] opacity-80">{new Date(event.start?.dateTime || "").toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} – {new Date(event.end?.dateTime || "").toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</div>}
+          {/* Time grid */}
+          <div ref={gridRef} className="flex-1 overflow-y-auto relative select-none" style={{ scrollbarWidth: "thin" }} onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp}>
+            <div className="relative" style={{ height: 24 * CELL_H }}>
+              {/* Hour labels + lines */}
+              {HOURS.map(h => (
+                <div key={h}>
+                  <div className="absolute left-0 w-[56px] text-right pr-2 text-[10px] -mt-[6px]" style={{ top: h * CELL_H, color: tc("#70757a", "#666") }}>
+                    {h === 0 ? "" : `${h % 12 || 12} ${h < 12 ? "AM" : "PM"}`}
+                  </div>
+                  <div className="absolute left-[56px] right-0" style={{ top: h * CELL_H, borderTop: `1px solid ${tc("#dadce0", "rgba(255,255,255,0.05)")}` }} />
+                </div>
+              ))}
+              {/* Day column borders */}
+              <div className="absolute left-[56px] right-0 top-0 bottom-0 flex pointer-events-none">
+                {Array.from({ length: numDays }, (_, i) => <div key={i} className="flex-1" style={{ borderLeft: i > 0 ? `1px solid ${tc("#dadce0", "rgba(255,255,255,0.05)")}` : "none" }} />)}
               </div>
-            );
-          })}
-        </div>
-      </div>
+              
+              {/* Current time line */}
+              <div className="absolute left-[56px] right-0 z-20 pointer-events-none" style={{ top: nowTop, borderTop: "2px solid #ea4335" }}>
+                <div className="absolute left-[-4px] top-[-5px] w-2.5 h-2.5 rounded-full bg-[#ea4335]" />
+              </div>
+
+              {/* Drag preview */}
+              {dragging && (
+                <div className="absolute rounded-[4px] pointer-events-none opacity-70" style={{ left: `calc(56px + ${dragging.day} * ((100% - 56px) / ${numDays}) + 2px)`, top: dragging.startQ * (CELL_H / 4), height: Math.max((dragging.endQ - dragging.startQ) * (CELL_H / 4), 12), width: `calc((100% - 56px) / ${numDays} - 4px)`, background: getColor(popupColor) }} />
+              )}
+
+              {/* Events */}
+              {events.map(event => {
+                const pos = getEventPosition(event);
+                if (!pos) return null;
+                const color = getColor(event.colorId);
+                return (
+                  <div key={event.id} className="absolute rounded-[4px] px-2 py-1 overflow-hidden cursor-pointer group" style={{ left: `calc(56px + ${pos.dayIdx} * ((100% - 56px) / ${numDays}) + 2px)`, top: pos.top, height: pos.height, width: `calc((100% - 56px) / ${numDays} - 4px)`, background: color, color: "#fff", fontSize: 11 }}
+                    onClick={e => { e.stopPropagation(); setPopup({ event, x: Math.min(e.clientX, window.innerWidth - 340), y: Math.min(e.clientY, window.innerHeight - 300) }); setPopupTitle(event.summary || ""); setPopupDesc(event.description || ""); setPopupColor(event.colorId || "7"); }}
+                    onContextMenu={e => { e.preventDefault(); e.stopPropagation(); setCtxMenu({ eventId: event.id, x: e.clientX, y: e.clientY }); }}>
+                    <div className="font-medium truncate leading-tight">{event.summary || "(No title)"}</div>
+                    {pos.height > 30 && <div className="text-[10px] opacity-80">{new Date(event.start?.dateTime || "").toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} – {new Date(event.end?.dateTime || "").toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</div>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Event popup editor */}
       {popup && (
@@ -242,7 +377,7 @@ export function CalendarFull({ isDark, onClose, onMinimize }: { isDark: boolean;
                 {popup.event ? (
                   <>{new Date(popup.event.start?.dateTime || "").toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })} – {new Date(popup.event.end?.dateTime || "").toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</>
                 ) : popup.day !== undefined ? (
-                  <>{addDays(weekStart, popup.day).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })} · {formatTime(popup.startQ!)} – {formatTime(popup.endQ!)}</>
+                  <>{addDays(viewStart, popup.day).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })} · {formatTime(popup.startQ!)} – {formatTime(popup.endQ!)}</>
                 ) : null}
               </div>
               {/* Description */}

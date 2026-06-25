@@ -12,6 +12,7 @@ const querySchema = z.object({
   maxResults: z.coerce.number().min(1).max(50).default(20),
   pageToken: z.string().optional(),
   label: z.string().default("INBOX"),
+  forceRefresh: z.coerce.boolean().default(false),
 });
 
 // GET /api/emails?pageToken=...&maxResults=20&label=INBOX
@@ -21,7 +22,7 @@ emailsRouter.get("/", async (req, res) => {
 
   const parsed = querySchema.safeParse(req.query);
   if (!parsed.success) { res.status(400).json({ error: "Invalid query", details: parsed.error.issues }); return; }
-  const { maxResults, pageToken, label } = parsed.data;
+  const { maxResults, pageToken, label, forceRefresh } = parsed.data;
 
   try {
     const tenant = corsair.withTenant(session.user.id);
@@ -30,10 +31,14 @@ emailsRouter.get("/", async (req, res) => {
 
     // Check cache
     const cacheKey = cache.emailsKey(session.user.id, label, pageToken || "1");
+    if (forceRefresh && !pageToken) {
+      await cache.delPattern(`emails:${session.user.id}:*`);
+    }
+    
     let cached = await cache.get<any>(cacheKey);
     const blockedIds = await cache.getBlockedIds(session.user.id);
     
-    if (cached) { 
+    if (cached && !forceRefresh) { 
       if (blockedIds.length > 0) {
         cached.emails = cached.emails.filter((m: any) => !blockedIds.includes(m.id));
       }
@@ -53,29 +58,16 @@ emailsRouter.get("/", async (req, res) => {
     const list = await tenant.gmail.api.messages.list(listParams);
     const messages = list.messages || [];
 
-    // Fetch full details for each message
-    const limit = pLimit(5);
+    // Fetch metadata for each message
+    const limit = pLimit(20);
     const detailed = await Promise.all(
       messages.map((m: any) => limit(async () => {
-        const full = await tenant.gmail.api.messages.get({ id: m.id });
+        const full = await tenant.gmail.api.messages.get({ 
+          id: m.id, 
+          format: "metadata"
+        });
         const headers = full.payload?.headers || [];
         const getHeader = (name: string) => headers.find((h: any) => h.name === name)?.value || "";
-
-        // Decode body
-        let body = "";
-        if (full.payload?.body?.data) {
-          body = Buffer.from(full.payload.body.data, "base64url").toString("utf-8");
-        } else if (full.payload?.parts) {
-          const textPart = full.payload.parts.find((p: any) => p.mimeType === "text/plain");
-          if (textPart?.body?.data) {
-            body = Buffer.from(textPart.body.data, "base64url").toString("utf-8");
-          } else {
-            const htmlPart = full.payload.parts.find((p: any) => p.mimeType === "text/html");
-            if (htmlPart?.body?.data) {
-              body = Buffer.from(htmlPart.body.data, "base64url").toString("utf-8");
-            }
-          }
-        }
 
         return {
           id: full.id,
@@ -85,7 +77,7 @@ emailsRouter.get("/", async (req, res) => {
           to: getHeader("To"),
           subject: getHeader("Subject"),
           date: getHeader("Date"),
-          body,
+          body: "", // Lazy loaded on frontend
           labelIds: full.labelIds || [],
           unread: (full.labelIds || []).includes("UNREAD"),
         };
@@ -123,8 +115,12 @@ emailsRouter.get("/:id", async (req, res) => {
     if (full.payload?.body?.data) {
       body = Buffer.from(full.payload.body.data, "base64url").toString("utf-8");
     } else if (full.payload?.parts) {
-      const textPart = full.payload.parts.find((p: any) => p.mimeType === "text/plain");
-      if (textPart?.body?.data) body = Buffer.from(textPart.body.data, "base64url").toString("utf-8");
+      const htmlPart = full.payload.parts.find((p: any) => p.mimeType === "text/html");
+      if (htmlPart?.body?.data) body = Buffer.from(htmlPart.body.data, "base64url").toString("utf-8");
+      else {
+        const textPart = full.payload.parts.find((p: any) => p.mimeType === "text/plain");
+        if (textPart?.body?.data) body = Buffer.from(textPart.body.data, "base64url").toString("utf-8");
+      }
     }
 
     res.json({

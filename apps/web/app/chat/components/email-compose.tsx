@@ -44,7 +44,7 @@ function EmailTagInput({ isDark, initial }: { isDark: boolean; initial?: string[
   );
 }
 
-export function EmailCompose({ isDark, onClose, prefill, onSuccess, completed }: { isDark: boolean; onClose: () => void; prefill?: { to?: string; subject?: string; body?: string }; onSuccess?: () => void; completed?: boolean }) {
+export function EmailCompose({ isDark, onClose, prefill, onSuccess, completed, inline = false }: { isDark: boolean; onClose: () => void; prefill?: { to?: string; subject?: string; body?: string; threadId?: string; messageId?: string }; onSuccess?: () => void; completed?: boolean; inline?: boolean }) {
   const tc = (l: string, d: string) => isDark ? d : l;
   const [subject, setSubject] = useState(prefill?.subject || "");
   const [body, setBody] = useState(prefill?.body || "");
@@ -56,7 +56,7 @@ export function EmailCompose({ isDark, onClose, prefill, onSuccess, completed }:
   const handleSend = async () => {
     setSending(true);
     setError(null);
-    const res = await fetch("/api/send-email", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ to: toRef.current[0] || prefill?.to, subject, body }) });
+    const res = await fetch("/api/send-email", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ to: toRef.current[0] || prefill?.to, subject, body, threadId: prefill?.threadId, messageId: prefill?.messageId }) });
     if (res.ok) { 
       setSent(true); 
       onSuccess?.(); 
@@ -77,8 +77,8 @@ export function EmailCompose({ isDark, onClose, prefill, onSuccess, completed }:
   );
 
   return (
-    <div style={{ animation: "fadeIn 0.3s ease-out" }} className="max-w-[500px]">
-      <div className="rounded-2xl overflow-hidden" style={{ background: tc("#fff", "#1e2028"), boxShadow: tc("0 4px 24px rgba(0,0,0,0.08)", "0 4px 24px rgba(0,0,0,0.4)"), border: `1px solid ${tc("rgba(0,0,0,0.08)", "rgba(255,255,255,0.08)")}` }}>
+    <div style={{ animation: "fadeIn 0.3s ease-out" }} className={inline ? "w-full" : "max-w-[500px]"}>
+      <div className="rounded-2xl overflow-hidden" style={{ background: tc("#fff", "#1e2028"), boxShadow: inline ? "none" : tc("0 4px 24px rgba(0,0,0,0.08)", "0 4px 24px rgba(0,0,0,0.4)"), border: inline ? "none" : `1px solid ${tc("rgba(0,0,0,0.08)", "rgba(255,255,255,0.08)")}` }}>
         <div className="flex items-center justify-between px-4 py-2.5" style={{ background: tc("#f8f9fa", "#282a34"), borderBottom: `1px solid ${tc("rgba(0,0,0,0.06)", "rgba(255,255,255,0.05)")}` }}>
           <div className="flex items-center gap-2">
             <img src="/gmail.png" alt="Gmail" className="w-4 h-4" />

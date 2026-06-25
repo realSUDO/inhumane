@@ -35,7 +35,13 @@ calendarRouter.get("/events", async (req, res) => {
     }
 
     const tenant = corsair.withTenant(session.user.id);
-    const result = await tenant.googlecalendar.api.events.getMany({ timeMin, timeMax, singleEvents: true, orderBy: "startTime" });
+    const result = await tenant.googlecalendar.api.events.getMany({ 
+      timeMin, 
+      timeMax, 
+      singleEvents: true, 
+      orderBy: "startTime",
+      fields: "items(id,summary,description,start,end,location,colorId),nextPageToken"
+    });
     const data = { events: result.items || [] };
     await cache.set(cacheKey, data, cache.TTL.calendar);
     
@@ -112,7 +118,7 @@ calendarRouter.put("/events/:id", async (req, res) => {
     if (!parsed.success) { res.status(400).json({ error: "Invalid body", details: parsed.error.issues }); return; }
 
     const tenant = corsair.withTenant(session.user.id);
-    const event = await tenant.googlecalendar.api.events.update({ id: req.params.id, event: parsed.data });
+    const event = await tenant.googlecalendar.api.events.patch({ id: req.params.id, requestBody: parsed.data });
     await cache.delPattern(`cal:${session.user.id}:*`);
     res.json(event);
   } catch (err: any) {

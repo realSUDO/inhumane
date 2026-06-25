@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { InboxIcon, StarIcon, SentIcon, Delete02Icon, Edit02Icon, Alert01Icon, Menu01Icon, Mail01Icon, Archive01Icon } from "hugeicons-react";
 import { EmailCompose } from "./email-compose";
 
-type Email = { id: string; threadId: string; from: string; to: string; subject: string; snippet: string; date: string; body: string; unread: boolean; labelIds: string[] };
+type Email = { id: string; threadId: string; from: string; to: string; subject: string; snippet: string; date: string; body: string; unread: boolean; labelIds: string[]; loadingBody?: boolean };
 
 function MaximizeIcon() {
   return <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>;
@@ -13,6 +13,9 @@ function MinimizeIcon() {
 }
 function BackIcon() {
   return <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>;
+}
+function RefreshIcon() {
+  return <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>;
 }
 
 const LABELS = [
@@ -34,31 +37,73 @@ export function EmailInbox({ isDark, onClose, expanded, onExpand }: { isDark: bo
   const [activeLabel, setActiveLabel] = useState("INBOX");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const observerTarget = useRef<HTMLDivElement>(null);
   const loadingRef = useRef(false);
+  const nextPageRef = useRef<string | null>(null);
+  const replyContainerRef = useRef<HTMLDivElement>(null);
 
-  const fetchEmails = async (label: string, pageToken?: string) => {
+  useEffect(() => {
+    if (isReplying && replyContainerRef.current) {
+      setTimeout(() => {
+        replyContainerRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+      }, 50);
+    }
+  }, [isReplying]);
+
+  const fetchEmails = async (label: string, pageToken?: string, forceRefresh = false) => {
     if (loadingRef.current) return;
     loadingRef.current = true;
     setLoading(true);
     const params = new URLSearchParams({ maxResults: "20", label });
     if (pageToken) params.set("pageToken", pageToken);
+    if (forceRefresh) params.set("forceRefresh", "true");
     const res = await fetch(`/api/emails?${params}`, { credentials: "include" });
     if (res.ok) {
       const data = await res.json();
       setEmails(prev => pageToken ? [...prev, ...data.emails] : data.emails);
       setNextPage(data.nextPageToken);
+      nextPageRef.current = data.nextPageToken;
     }
     setLoading(false);
     loadingRef.current = false;
   };
 
-  useEffect(() => { setEmails([]); setNextPage(null); fetchEmails(activeLabel); }, [activeLabel]);
+  useEffect(() => { setEmails([]); setNextPage(null); nextPageRef.current = null; fetchEmails(activeLabel); }, [activeLabel]);
 
-  const handleScroll = () => {
-    if (!scrollRef.current || !nextPage || loadingRef.current) return;
-    const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
-    if (scrollHeight - scrollTop - clientHeight < 200) fetchEmails(activeLabel, nextPage!);
-  };
+  // Infinite Scroll via Intersection Observer
+  useEffect(() => {
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting && nextPageRef.current && !loadingRef.current) {
+        fetchEmails(activeLabel, nextPageRef.current);
+      }
+    }, { root: scrollRef.current, rootMargin: "400px" });
+    
+    if (observerTarget.current) observer.observe(observerTarget.current);
+    return () => observer.disconnect();
+  }, [activeLabel]);
+
+  // Pre-fetch chunk if there are few emails
+  useEffect(() => {
+    if (emails.length > 0 && emails.length < 40 && nextPage && !loading) {
+      fetchEmails(activeLabel, nextPage);
+    }
+  }, [emails, nextPage, loading, activeLabel]);
+
+  // Lazy Hydrate Full Body on Open
+  useEffect(() => {
+    if (openEmail && !openEmail.body && !openEmail.loadingBody) {
+      setOpenEmail(prev => prev ? { ...prev, loadingBody: true } : prev);
+      fetch(`/api/emails/${openEmail.id}`, { credentials: "include" })
+        .then(res => res.json())
+        .then(data => {
+          if (data.body) {
+            setEmails(prev => prev.map(m => m.id === openEmail.id ? { ...m, body: data.body } : m));
+            setOpenEmail(prev => prev && prev.id === openEmail.id ? { ...prev, body: data.body, loadingBody: false } : prev);
+          }
+        })
+        .catch(() => setOpenEmail(prev => prev ? { ...prev, loadingBody: false } : prev));
+    }
+  }, [openEmail]);
 
   const formatDate = (d: string) => {
     try { const date = new Date(d); const now = new Date(); return date.toDateString() === now.toDateString() ? date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : date.toLocaleDateString([], { month: "short", day: "numeric" }); } catch { return d; }
@@ -127,19 +172,39 @@ export function EmailInbox({ isDark, onClose, expanded, onExpand }: { isDark: bo
         </div>
         
         {/* Email Content */}
-        <div className="text-[14px] leading-relaxed max-w-[800px]" style={{ color: tc("#222", "#ddd") }}>
-          {openEmail!.body?.includes("<") ? (
-            <div dangerouslySetInnerHTML={{ __html: openEmail!.body }} className="email-body [&_a]:underline [&_a]:text-[color:var(--accent,#1a73e8)] [&_img]:max-w-full [&_img]:rounded-lg [&_img]:my-4" />
+        <div className="text-[14px] leading-relaxed w-full">
+          {openEmail!.loadingBody || !openEmail!.body ? (
+            <div className="w-full py-8 space-y-4">
+              <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded w-3/4 animate-pulse"></div>
+              <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded w-1/2 animate-pulse"></div>
+              <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded w-5/6 animate-pulse"></div>
+              <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded w-full animate-pulse"></div>
+              <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded w-2/3 animate-pulse"></div>
+            </div>
+          ) : openEmail!.body.includes("<") ? (
+            <iframe
+              srcDoc={openEmail!.body}
+              sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin"
+              className="w-full border-0 rounded-xl bg-white min-h-[400px]"
+              onLoad={(e) => {
+                const iframe = e.target as HTMLIFrameElement;
+                if (iframe.contentWindow) {
+                  try {
+                    iframe.style.height = iframe.contentWindow.document.documentElement.scrollHeight + 'px';
+                  } catch (e) {}
+                }
+              }}
+            />
           ) : (
-            <p className="whitespace-pre-wrap">{(openEmail!.body || openEmail!.snippet).replace(/(https?:\/\/[^\s]+)/g, '|||LINK:$1|||').split('|||').map((part, i) => part.startsWith('LINK:') ? <a key={i} href={part.slice(5)} target="_blank" rel="noopener noreferrer" className="underline break-all" style={{ color: "var(--accent, #1a73e8)" }}>{part.slice(5)}</a> : part)}</p>
+            <p className="whitespace-pre-wrap max-w-[800px]" style={{ color: tc("#222", "#ddd") }}>{(openEmail!.body || openEmail!.snippet).replace(/(https?:\/\/[^\s]+)/g, '|||LINK:$1|||').split('|||').map((part, i) => part.startsWith('LINK:') ? <a key={i} href={part.slice(5)} target="_blank" rel="noopener noreferrer" className="underline break-all" style={{ color: "var(--accent, #1a73e8)" }}>{part.slice(5)}</a> : part)}</p>
           )}
         </div>
         
         {/* Reply Action */}
-        <div className="mt-10 pt-6">
+        <div className="mt-10 pt-6 pb-32" ref={replyContainerRef}>
           {isReplying ? (
             <div className="rounded-2xl border bg-white dark:bg-[#1a1c23] shadow-sm mb-4" style={{ borderColor: tc("rgba(0,0,0,0.1)", "rgba(255,255,255,0.1)") }}>
-               <EmailCompose isDark={isDark} onClose={() => setIsReplying(false)} prefill={{ to: openEmail!.from.match(/<([^>]+)>/)?.[1] || openEmail!.from, subject: openEmail!.subject.startsWith('Re:') ? openEmail!.subject : `Re: ${openEmail!.subject}` }} />
+               <EmailCompose isDark={isDark} onClose={() => setIsReplying(false)} inline={true} prefill={{ to: openEmail!.from.match(/<([^>]+)>/)?.[1] || openEmail!.from, subject: openEmail!.subject.startsWith('Re:') ? openEmail!.subject : `Re: ${openEmail!.subject}`, threadId: openEmail!.threadId, messageId: openEmail!.id }} />
             </div>
           ) : (
             <button onClick={() => setIsReplying(true)} className="px-6 py-2.5 rounded-full border text-[14px] font-medium transition-colors flex items-center gap-2" style={{ borderColor: tc("rgba(0,0,0,0.1)", "rgba(255,255,255,0.1)"), color: tc("#444", "#ccc") }} onMouseEnter={e => e.currentTarget.style.background = tc("rgba(0,0,0,0.03)", "rgba(255,255,255,0.03)")} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
@@ -180,16 +245,17 @@ export function EmailInbox({ isDark, onClose, expanded, onExpand }: { isDark: bo
             <div className="flex-1 flex items-center rounded-full" style={{ background: tc("#eaf1fb", "rgba(255,255,255,0.05)") }}>
               <input className="w-full max-w-[400px] px-4 py-1.5 bg-transparent outline-none text-[13px]" style={{ color: tc("#222", "#eee") }} placeholder="Search mail" />
             </div>
+            <button onClick={() => { setEmails([]); setNextPage(null); nextPageRef.current = null; fetchEmails(activeLabel, undefined, true); }} className="p-2 rounded-full" title="Refresh" style={{ color: tc("#555", "#aaa") }}><RefreshIcon /></button>
             <button onClick={onExpand} className="p-2 rounded-full" style={{ color: tc("#555", "#aaa") }}><MinimizeIcon /></button>
             <button onClick={onClose} className="p-2 rounded-full text-[16px]" style={{ color: tc("#555", "#aaa") }}>×</button>
           </div>
 
           {/* Main Content (Email rows OR Email detail) */}
           {openEmail ? renderDetailView() : (
-            <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
+            <div ref={scrollRef} className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
               {emails.length === 0 && !loading && <div className="py-12 text-center text-[13px]" style={{ color: tc("#999", "#666") }}>No emails</div>}
               {emails.map(mail => (
-                <div key={mail.id} onClick={() => { setOpenEmail(mail); setIsReplying(false); }} className="flex items-center px-1 cursor-pointer group" style={{ borderBottom: `1px solid ${tc("rgba(0,0,0,0.04)", "rgba(255,255,255,0.03)")}`, background: mail.unread ? tc("#fff", "rgba(255,255,255,0.02)") : tc("#f6f8fc", "#0d1117") }} onMouseEnter={e => (e.currentTarget.style.background = tc("#f2f6fc", "rgba(255,255,255,0.04)"))} onMouseLeave={e => (e.currentTarget.style.background = mail.unread ? tc("#fff", "rgba(255,255,255,0.02)") : tc("#f6f8fc", "#0d1117"))}>
+                <div key={mail.id} onClick={() => { setOpenEmail(mail); setIsReplying(false); if (mail.unread) doAction(mail.id, "read"); }} className="flex items-center px-1 cursor-pointer group" style={{ borderBottom: `1px solid ${tc("rgba(0,0,0,0.04)", "rgba(255,255,255,0.03)")}`, background: mail.unread ? tc("#fff", "rgba(255,255,255,0.02)") : tc("#f6f8fc", "#0d1117") }} onMouseEnter={e => (e.currentTarget.style.background = tc("#f2f6fc", "rgba(255,255,255,0.04)"))} onMouseLeave={e => (e.currentTarget.style.background = mail.unread ? tc("#fff", "rgba(255,255,255,0.02)") : tc("#f6f8fc", "#0d1117"))}>
                   <div className="w-9 flex items-center justify-center shrink-0"><input type="checkbox" className="w-3.5 h-3.5 opacity-40" onClick={e => e.stopPropagation()} /></div>
                   <div className="w-7 flex items-center justify-center shrink-0 cursor-pointer" onClick={e => { e.stopPropagation(); doAction(mail.id, mail.labelIds.includes("STARRED") ? "unstar" : "star"); }}><StarIcon size={14} style={{ color: mail.labelIds.includes("STARRED") ? "#f4b400" : tc("#ccc", "#555") }} /></div>
                   <div className="w-[160px] shrink-0 px-2 py-2"><span className={`text-[13px] truncate block ${mail.unread ? "font-bold" : ""}`} style={{ color: tc("#222", "#eee") }}>{extractName(mail.from)}</span></div>
@@ -206,7 +272,19 @@ export function EmailInbox({ isDark, onClose, expanded, onExpand }: { isDark: bo
                   <div className="w-[65px] shrink-0 px-2 py-2 text-right group-hover:hidden"><span className={`text-[11px] ${mail.unread ? "font-bold" : ""}`} style={{ color: mail.unread ? tc("#222", "#eee") : tc("#777", "#888") }}>{formatDate(mail.date)}</span></div>
                 </div>
               ))}
-              {loading && <div className="py-4 text-center text-[12px]" style={{ color: tc("#999", "#666") }}>Loading...</div>}
+              <div ref={observerTarget} className="h-4 w-full" />
+              {loading && (
+                <div className="py-3 flex flex-col gap-1">
+                  {[...Array(3)].map((_, i) => (
+                    <div key={i} className="flex items-center px-4 py-3 border-b" style={{ borderColor: tc("rgba(0,0,0,0.04)", "rgba(255,255,255,0.03)") }}>
+                      <div className="w-4 h-4 bg-gray-200 dark:bg-gray-800 rounded animate-pulse mr-4"></div>
+                      <div className="w-8 h-8 bg-gray-200 dark:bg-gray-800 rounded-full animate-pulse mr-3"></div>
+                      <div className="w-24 h-4 bg-gray-200 dark:bg-gray-800 rounded animate-pulse mr-4"></div>
+                      <div className="flex-1 h-4 bg-gray-200 dark:bg-gray-800 rounded animate-pulse"></div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
