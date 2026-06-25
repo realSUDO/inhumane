@@ -73,7 +73,7 @@ export function EmailInbox({ isDark, onClose, expanded, onExpand }: { isDark: bo
   // Infinite Scroll via Intersection Observer
   useEffect(() => {
     const observer = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting && nextPageRef.current && !loadingRef.current) {
+      if (entries[0]?.isIntersecting && nextPageRef.current && !loadingRef.current) {
         fetchEmails(activeLabel, nextPageRef.current);
       }
     }, { root: scrollRef.current, rootMargin: "400px" });
