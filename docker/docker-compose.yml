@@ -1,22 +1,4 @@
 services:
-  caddy:
-    image: caddy:2-alpine
-    restart: unless-stopped
-    dns:
-      - 8.8.8.8
-      - 1.1.1.1
-    ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile
-      - caddy_data:/data
-      - caddy_config:/config
-    depends_on:
-      - web
-      - api
-
   web:
     image: ghcr.io/${GITHUB_REPO}:web-latest
     restart: unless-stopped
@@ -27,6 +9,9 @@ services:
       - INTERNAL_API_URL=http://api:4000
     expose:
       - "3000"
+    networks:
+      - default
+      - global_proxy_net
     depends_on:
       - api
 
@@ -39,6 +24,9 @@ services:
       - REDIS_URL=redis://valkey:6379
     expose:
       - "4000"
+    networks:
+      - default
+      - global_proxy_net
     depends_on:
       - postgres
       - valkey
@@ -64,7 +52,10 @@ services:
       - valkey_data:/data
 
 volumes:
-  caddy_data:
-  caddy_config:
   pg_data:
   valkey_data:
+
+networks:
+  default:
+  global_proxy_net:
+    external: true

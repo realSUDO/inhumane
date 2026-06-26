@@ -87,7 +87,7 @@ jobs:
           host: ${{ secrets.VM_HOST }}
           username: ${{ secrets.VM_USER }}
           key: ${{ secrets.VM_SSH_KEY }}
-          source: "docker/docker-compose.yml,docker/Caddyfile"
+          source: "docker/docker-compose.yml,inhumane.caddy"
           target: "~/inhumane"
           strip_components: 1
       - name: Deploy on VM
@@ -100,4 +100,9 @@ jobs:
             cd ~/inhumane
             docker compose pull
             docker compose up -d --remove-orphans
+            
+            mkdir -p ~/global-proxy/sites
+            cp ~/inhumane/inhumane.caddy ~/global-proxy/sites/inhumane.caddy
+            docker exec global-proxy-caddy-1 caddy reload -c /etc/caddy/Caddyfile
+            
             docker image prune -f
