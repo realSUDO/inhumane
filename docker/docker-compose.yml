@@ -1,24 +1,22 @@
 services:
-  web:
+  inhumane-web:
     image: ghcr.io/${GITHUB_REPO}:web-latest
-    container_name: inhumane-web
     restart: unless-stopped
     env_file: .env
     environment:
       - PORT=3000
       - HOSTNAME=0.0.0.0
-      - INTERNAL_API_URL=http://api:4000
+      - INTERNAL_API_URL=http://inhumane-api:4000
     expose:
       - "3000"
     networks:
       - default
       - global_proxy_net
     depends_on:
-      - api
+      - inhumane-api
 
-  api:
+  inhumane-api:
     image: ghcr.io/${GITHUB_REPO}:api-latest
-    container_name: inhumane-api
     restart: unless-stopped
     env_file: .env
     environment:
