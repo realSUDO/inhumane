@@ -87,7 +87,7 @@ jobs:
           host: ${{ secrets.VM_HOST }}
           username: ${{ secrets.VM_USER }}
           key: ${{ secrets.VM_SSH_KEY }}
-          source: "docker/docker-compose.yml,inhumane.caddy"
+          source: "docker/docker-compose.yml,docker/inhumane.caddy"
           target: "~/inhumane"
           strip_components: 1
       - name: Deploy on VM
