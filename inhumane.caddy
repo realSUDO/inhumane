@@ -1,22 +1,21 @@
-
 inhumane.in, www.inhumane.in {
 	handle /api/* {
-		reverse_proxy api:4000
+		reverse_proxy inhumane-api:4000
 	}
 	handle {
-		reverse_proxy web:3000
+		reverse_proxy inhumane-web:3000
 	}
 }
 
 chat.inhumane.in {
 	handle /api/* {
-		reverse_proxy api:4000
+		reverse_proxy inhumane-api:4000
 	}
 	handle {
-		reverse_proxy web:3000
+		reverse_proxy inhumane-web:3000
 	}
 }
 
 api.inhumane.in {
-	reverse_proxy api:4000
+	reverse_proxy inhumane-api:4000
 }

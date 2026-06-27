@@ -1,6 +1,7 @@
 services:
   web:
     image: ghcr.io/${GITHUB_REPO}:web-latest
+    container_name: inhumane-web
     restart: unless-stopped
     env_file: .env
     environment:
@@ -17,6 +18,7 @@ services:
 
   api:
     image: ghcr.io/${GITHUB_REPO}:api-latest
+    container_name: inhumane-api
     restart: unless-stopped
     env_file: .env
     environment:
